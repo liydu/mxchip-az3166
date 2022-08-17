@@ -4,21 +4,37 @@
 #include <stdio.h>
 
 #include "tx_api.h"
+#include "nx_api.h"
 
 #include "main.h"
 #include "board_init.h"
+#include "cmsis_utils.h"
 
-UNIT app_thread_init(VOID *memory_ptr)
+#define TX_APP_MEM_POOL_SIZE 1024
+#define NX_APP_MEM_POOL_SIZE 102400
+
+static TX_BYTE_POOL tx_app_byte_pool;
+static UCHAR tx_byte_pool_buffer[TX_APP_MEM_POOL_SIZE];
+
+static TX_BYTE_POOL nx_app_byte_pool;
+static UCHAR nx_byte_pool_buffer[NX_APP_MEM_POOL_SIZE];
+
+/**
+ * @brief  Application ThreadX Initialization.
+ * @param memory_ptr: memory pointer
+ * @retval int
+ */
+UINT app_thread_init(VOID *memory_ptr)
 {
-    UNIT status = TX_SUCCESS;
-    TX_BYLE_POLL *byte_pool = (TX_BYTE_POOL *)memory_ptr;
+    UINT status = TX_SUCCESS;
+    TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL *)memory_ptr;
 
     (void)byte_pool;
 
     return status;
 }
 
-void tx_application_define(void* first_unused_memory)
+void tx_application_define(void *first_unused_memory)
 {
     systick_interval_set(TX_TIMER_TICKS_PER_SECOND);
 
@@ -53,7 +69,6 @@ void tx_application_define(void* first_unused_memory)
         {
             printf("ERROR: Failed to run nx_client_init (0x%08x)\r\n", status);
         }
-
     }
 }
 

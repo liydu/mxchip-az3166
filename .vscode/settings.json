@@ -5,6 +5,8 @@
   "cmake.buildDirectory": "${workspaceFolder}/build",
   "vscode-embedded.loggingVerbosity": "warn",
   "files.associations": {
-    "stdio.h": "c"
-  },
+    "stdio.h": "c",
+    "tx_api.h": "c",
+    "cmsis_utils.h": "c"
+  }
 }

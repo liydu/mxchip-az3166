@@ -1,10 +1,29 @@
-BasedOnStyle:  Microsoft
-BinPackArguments: false
-BinPackParameters: false
-AlignAfterOpenBracket: DontAlign
-AlignConsecutiveMacros: true
-AlignConsecutiveAssignments: true
+# Global style
+BasedOnStyle: Microsoft
+#
+# Basic
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 120
+UseTab: Never
+#
+# Function and macro
+AlignAfterOpenBracket: Align
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackParameters: true
+AlignConsecutiveMacros: Consecutive
+AllowAllArgumentsOnNextLine: false
+#
+# if and switch case
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: true
+AlignTrailingComments: true
 IndentCaseLabels: true
-PointerAlignment: Left
 BraceWrapping:
   AfterCaseLabel: true
+#
+# Other
+SpaceInEmptyBlock: true
+AlignConsecutiveAssignments: Consecutive
+SpacesInContainerLiterals: true
+# AlignArrayOfStructures: Right

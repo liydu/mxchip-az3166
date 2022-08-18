@@ -10,9 +10,6 @@
 #include "board_init.h"
 #include "cmsis_utils.h"
 
-#define TX_APP_MEM_POOL_SIZE 1024
-#define NX_APP_MEM_POOL_SIZE 102400
-
 static TX_BYTE_POOL tx_app_byte_pool;
 static UCHAR tx_byte_pool_buffer[TX_APP_MEM_POOL_SIZE];
 
@@ -63,8 +60,8 @@ void tx_application_define(void *first_unused_memory)
     else
     {
         memory_ptr = (VOID *)&nx_app_byte_pool;
-        status = nx_client_init(memory_ptr);
 
+        status = nx_client_init(memory_ptr);
         if (status != NX_SUCCESS)
         {
             printf("ERROR: Failed to run nx_client_init (0x%08x)\r\n", status);

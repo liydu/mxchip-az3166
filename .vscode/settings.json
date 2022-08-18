@@ -7,6 +7,10 @@
   "files.associations": {
     "stdio.h": "c",
     "tx_api.h": "c",
-    "cmsis_utils.h": "c"
+    "cmsis_utils.h": "c",
+    "nx_client.h": "c",
+    "nxd_dhcp_client.h": "c",
+    "nx_api.h": "c",
+    "random": "c"
   }
 }

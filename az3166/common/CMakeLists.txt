@@ -8,11 +8,10 @@ set(SOURCES
     console.c
     screen.c
     stm32f4xx_hal_msp.c
-    # wwd_networking.c
 )
 
 # Allow to disable the newlib stubbing
-if(NOT DEFINED DISABLE_NEWLIB_STUB) 
+if(NOT DEFINED DISABLE_NEWLIB_STUB)
     list(APPEND SOURCES
         newlib_nano.c
     )
@@ -24,7 +23,7 @@ add_library(${TARGET} OBJECT
 
 target_include_directories(${TARGET}
     PUBLIC
-        .
+    .
 )
 
 target_link_libraries(${TARGET}
@@ -32,4 +31,4 @@ target_link_libraries(${TARGET}
     azrtos::netxduo
     stm32cubef4
     mxchip_bsp
-)  
+)

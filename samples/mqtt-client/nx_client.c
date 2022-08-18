@@ -121,11 +121,11 @@ static UINT wifi_init()
 
     // Set country
     // TODO: this will cause error
-    // if (wwd_management_wifi_on(WIFI_COUNTRY) != WWD_SUCCESS)
-    // {
-    //     printf("ERROR: wwd_management_wifi_on\r\n");
-    //     return NX_NOT_SUCCESSFUL;
-    // }
+    if (wwd_management_wifi_on(WIFI_COUNTRY) != WWD_SUCCESS)
+    {
+        printf("ERROR: wwd_management_wifi_on\r\n");
+        return NX_NOT_SUCCESSFUL;
+    }
 
     wwd_wifi_get_mac_address(&mac, WWD_STA_INTERFACE);
     printf("\tMAC address: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
@@ -407,6 +407,49 @@ static VOID ip_address_change_notify_callback(NX_IP *ip_instance, VOID *ptr)
 }
 
 /**
+ * @brief  Connect WiFi.
+ * @param none
+ * @retval none
+ */
+static VOID wifi_connect()
+{
+    int32_t wifiConnectCounter = 1;
+    wiced_ssid_t wiced_ssid = {0};
+    wwd_result_t join_result;
+
+    // Check if Wifi is already connected
+    if (wwd_wifi_is_ready_to_transceive(WWD_STA_INTERFACE) != WWD_SUCCESS)
+    {
+        printf("\r\nConnecting WiFi...\r\n");
+
+        // Halt any existing connection attempts
+        wwd_wifi_join_halt(WICED_TRUE);
+        wwd_wifi_leave(WWD_STA_INTERFACE);
+        wwd_wifi_join_halt(WICED_FALSE);
+
+        wiced_ssid.length = strlen(wifi_ssid);
+        memcpy(wiced_ssid.value, wifi_ssid, wiced_ssid.length);
+
+        // Connect to the specified SSID
+        printf("\tConnecting to SSID '%s'\r\n", wifi_ssid);
+        do
+        {
+            printf("\tAttempt %ld...\r\n", wifiConnectCounter++);
+
+            // Obtain the IP internal mutex before reconnecting WiFi
+            tx_mutex_get(&(IpInstance.nx_ip_protection), TX_WAIT_FOREVER);
+            join_result = wwd_wifi_join(
+                &wiced_ssid, wifi_mode, (uint8_t *)wifi_password, strlen(wifi_password), NULL, WWD_STA_INTERFACE);
+            tx_mutex_put(&(IpInstance.nx_ip_protection));
+
+            tx_thread_sleep(5 * TX_TIMER_TICKS_PER_SECOND);
+        } while (join_result != WWD_SUCCESS);
+
+        printf("SUCCESS: WiFi connected\r\n");
+    }
+}
+
+/**
  * @brief  Main thread entry.
  * @param thread_input: ULONG user argument used by the thread entry
  * @retval none
@@ -414,6 +457,9 @@ static VOID ip_address_change_notify_callback(NX_IP *ip_instance, VOID *ptr)
 static VOID app_main_thread_entry(ULONG thread_input)
 {
     UINT status = NX_SUCCESS;
+
+    // Connect WiFi
+    wifi_connect();
 
     // Create a DNS client
     status = nx_dns_create(&DnsClient, &IpInstance, (UCHAR *)"DNS Client");

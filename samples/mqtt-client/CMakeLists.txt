@@ -5,10 +5,13 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 set(CMAKE_C_STANDARD 99)
 
 set(ROOT_DIR ${CMAKE_SOURCE_DIR}/../..)
+
 # Path of static libs
 set(LIB_DIR ${ROOT_DIR}/lib)
+
 # Path of common code for AZ3166
 set(AZ3166_DIR ${ROOT_DIR}/az3166)
+
 # Path of acutal sample codes
 set(SAMPLES_DIR ${ROOT_DIR}/samples)
 
@@ -42,14 +45,8 @@ set(SOURCES
     ${AZ3166_DIR}/startup/system_stm32f4xx.c
     ${AZ3166_DIR}/startup/startup_stm32f412rx.s
     ${AZ3166_DIR}/startup/tx_initialize_low_level.S
-    # stm32cubef4/stm32f4xx_hal_msp.c
-    # nx_client.c
-    # board_init.c
-    # console.c
-    # screen.c
     main.c
     nx_client.c
-    # wwd_networking.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -64,14 +61,14 @@ target_link_libraries(${PROJECT_NAME}
     common
 )
 
-target_include_directories(${PROJECT_NAME} 
-    PUBLIC 
-        .
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+    .
 )
 
-target_link_directories(${PROJECT_NAME} 
-    PUBLIC 
-        ${AZ3166_DIR}/startup
+target_link_directories(${PROJECT_NAME}
+    PUBLIC
+    ${AZ3166_DIR}/startup
 )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "IAR")

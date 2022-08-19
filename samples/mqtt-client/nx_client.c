@@ -187,7 +187,7 @@ UINT nx_client_init(VOID *memory_ptr)
     nx_system_initialize();
 
     // Create the Main TX Packet pool to be used for packet allocation
-    status = nx_packet_pool_create(&AppPool[0], "Main TX Packet Pool", NX_PACKET_SIZE, tx_pool_stack, NX_TX_PACKET_POOL_SIZE);
+    status = nx_packet_pool_create(&AppPool[0], "TX Packet Pool", NX_PACKET_SIZE, tx_pool_stack, NX_TX_PACKET_POOL_SIZE);
     if (status != NX_SUCCESS)
     {
         printf("ERROR: nx_packet_pool_create for Main TX (0x%08x)\r\n", status);
@@ -195,7 +195,7 @@ UINT nx_client_init(VOID *memory_ptr)
     }
 
     // Create the Main RX Packet pool to be used for packet allocation
-    status = nx_packet_pool_create(&AppPool[1], "Main RX Packet Pool", NX_PACKET_SIZE, rx_pool_stack, NX_RX_PACKET_POOL_SIZE);
+    status = nx_packet_pool_create(&AppPool[1], "RX Packet Pool", NX_PACKET_SIZE, rx_pool_stack, NX_RX_PACKET_POOL_SIZE);
     if (status != NX_SUCCESS)
     {
         nx_packet_pool_delete(&AppPool[0]);

@@ -12,6 +12,9 @@
     "nxd_dhcp_client.h": "c",
     "nx_api.h": "c",
     "random": "c",
-    "type_traits": "c"
+    "type_traits": "c",
+    "screen.h": "c",
+    "wwd_networking.h": "c",
+    "sntp_client.h": "c"
   }
 }

@@ -8,7 +8,7 @@
           "servertype": "openocd",
           "device": "STM32F412RG",
           "runToEntryPoint": "main",
-          "executable": "${workspaceFolder}/samples/mqtt-client/build/mxchip_mqtt_client.elf",
+          "executable": "${workspaceFolder}/samples/mqtt_client/build/mxchip_mqtt_client.elf",
           "svdFile": "${workspaceFolder}/STM32F412.svd",
           "cwd": "${workspaceRoot}",
           "configFiles": [
@@ -19,7 +19,7 @@
       {
           "name": "MXCHIP: Remote",
           "type": "cortex-debug",
-          "executable": "${workspaceFolder}/samples/mqtt-client/build/mxchip_mqtt_client.elf",
+          "executable": "${workspaceFolder}/samples/mqtt_client/build/mxchip_mqtt_client.elf",
           "request": "launch",
           "servertype": "external",
         //   "gdbTarget": "${input:device.host}",

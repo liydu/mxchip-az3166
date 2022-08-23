@@ -31,12 +31,12 @@ include(utilities)
 
 # Define the Project
 # CXX enables IntelliSense only. Sources are still compiled as C.
-project(mxchip_mqtt_client C CXX ASM)
+project(mxchip_azure_iot C CXX ASM)
 
 # Disable common networking component, MXCHIP has it's own
 set(DISABLE_COMMON_NETWORK true)
 
-set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/mqtt-client/config)
+set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/azure_iot/config)
 
 add_subdirectory(${LIB_DIR} lib)
 add_subdirectory(${AZ3166_DIR}/common common)
@@ -46,7 +46,9 @@ set(SOURCES
     ${AZ3166_DIR}/startup/startup_stm32f412rx.s
     ${AZ3166_DIR}/startup/tx_initialize_low_level.S
     main.c
-    nx_client.c
+    # nx_client.c
+    sntp_client.c
+    wwd_networking.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

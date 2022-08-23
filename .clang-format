@@ -19,8 +19,6 @@ AllowShortCaseLabelsOnASingleLine: true
 AllowShortIfStatementsOnASingleLine: true
 AlignTrailingComments: true
 IndentCaseLabels: true
-BraceWrapping:
-  AfterCaseLabel: true
 #
 # Other
 SpaceInEmptyBlock: true

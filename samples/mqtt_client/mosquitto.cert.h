@@ -4,16 +4,6 @@
  * @author  MCD Application Team
  * @brief   trusted root CA certificate for Mosquitto borker client
  ******************************************************************************
- * @attention
- *
- * Copyright (c) 2021 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
  */
 
 /* Binary data for the TLS Client X.509 trusted root CA certificate, ASN.1 DERencoded. A trusted certificate must be

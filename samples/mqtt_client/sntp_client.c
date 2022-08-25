@@ -20,7 +20,7 @@
 // Seconds between Unix Epoch (1/1/1970) and NTP Epoch (1/1/1999)
 #define UNIX_TO_NTP_EPOCH_SECS 0x83AA7E80
 
-static const char* SNTP_SERVER[] = {
+static const char *SNTP_SERVER[] = {
     "0.pool.ntp.org",
     "1.pool.ntp.org",
     "2.pool.ntp.org",
@@ -36,7 +36,7 @@ static TX_EVENT_FLAGS_GROUP sntp_flags;
 static ULONG sntp_last_time = 0;
 static ULONG tx_last_ticks  = 0;
 
-static VOID time_update_callback(NX_SNTP_TIME_MESSAGE* time_update_ptr, NX_SNTP_TIME* local_time)
+static VOID time_update_callback(NX_SNTP_TIME_MESSAGE *time_update_ptr, NX_SNTP_TIME *local_time)
 {
     // Set the update flag so we pick up the new time in the SNTP thread
     tx_event_flags_set(&sntp_flags, SNTP_UPDATE_EVENT, TX_OR);
@@ -83,11 +83,8 @@ static UINT sntp_client_run()
     nx_sntp_client_stop(&sntp_client);
 
     // Resolve DNS
-    if ((status = nxd_dns_host_by_name_get(&nx_dns_client,
-             (UCHAR*)SNTP_SERVER[sntp_server_count],
-             &sntp_address,
-             5 * NX_IP_PERIODIC_RATE,
-             NX_IP_VERSION_V4)))
+    if ((status = nxd_dns_host_by_name_get(&nx_dns_client, (UCHAR *)SNTP_SERVER[sntp_server_count], &sntp_address,
+                                           5 * NX_IP_PERIODIC_RATE, NX_IP_VERSION_V4)))
     {
         printf("ERROR: Unable to resolve SNTP IP %s (0x%08x)\r\n", SNTP_SERVER[sntp_server_count], status);
     }
@@ -121,7 +118,7 @@ ULONG sntp_time_get()
     return sntp_time;
 }
 
-UINT sntp_time(ULONG* unix_time)
+UINT sntp_time(ULONG *unix_time)
 {
     *unix_time = sntp_time_get();
 
@@ -137,8 +134,8 @@ UINT sntp_init()
         printf("ERROR: Create SNTP event flags (0x%08x)\r\n", status);
     }
 
-    else if ((status = nx_sntp_client_create(
-                  &sntp_client, &nx_ip, 0, nx_ip.nx_ip_default_packet_pool, NX_NULL, NX_NULL, NULL)))
+    else if ((status = nx_sntp_client_create(&sntp_client, &nx_ip, 0, nx_ip.nx_ip_default_packet_pool, NX_NULL, NX_NULL,
+                                             NULL)))
     {
         printf("ERROR: SNTP client create failed (0x%08x)\r\n", status);
     }

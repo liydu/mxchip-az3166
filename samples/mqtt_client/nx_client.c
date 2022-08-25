@@ -2,627 +2,297 @@
    Licensed under the MIT License. */
 
 #include "nx_client.h"
-#include "nxd_dhcp_client.h"
-#include "nxd_sntp_client.h"
-#include "nxd_dns.h"
 
-#include "wiced_sdk.h"
+#include <stdio.h>
 
-// WiFi configurations
-typedef enum
-{
-    None = 0,
-    WEP = 1,
-    WPA_PSK_TKIP = 2,
-    WPA2_PSK_AES = 3
-} WiFi_Mode;
+#include "stm32f4xx_hal.h"
 
-#define DEFAULT_MEMORY_SIZE 1024
-#define IP_STACK_MEMORY_SIZE 2 * DEFAULT_MEMORY_SIZE
-#define ARP_MEMORY_SIZE 512
+#include "nx_api.h"
+#include "nx_secure_tls_api.h"
+#include "nxd_mqtt_client.h"
 
-// IP instance configurations
-#define NX_TX_PACKET_COUNT 16
-#define NX_RX_PACKET_COUNT 12
-#define NX_PACKET_SIZE (WICED_LINK_MTU)
-#define NX_TX_PACKET_POOL_SIZE ((NX_PACKET_SIZE + sizeof(NX_PACKET)) * NX_TX_PACKET_COUNT)
-#define NX_RX_PACKET_POOL_SIZE ((NX_PACKET_SIZE + sizeof(NX_PACKET)) * NX_RX_PACKET_COUNT)
+#include "mqtt_config.h"
+#include "wwd_networking.h"
 
-#define NULL_ADDRESS IP_ADDRESS(0, 0, 0, 0)
-#define NULL_MASK IP_ADDRESS(255, 255, 255, 0)
-#define USER_DNS_ADDRESS IP_ADDRESS(1, 1, 1, 1)
-
-// Winced WiFi configurations
-#define WIFI_COUNTRY WICED_COUNTRY_UNITED_STATES
-
-// Threads configurations
-#define DEFAULT_THREAD_MEMORY_SIZE 4 * DEFAULT_MEMORY_SIZE
-#define DEFAULT_MAIN_PRIORITY 10
-
-#define SNTP_CLIENT_THREAD_MEMORY_SIZE 6 * DEFAULT_MEMORY_SIZE
-#define SNTP_PRIORITY 5
-
-#define MQTT_PRIORITY 3
-
-#define APP_QUEUE_SIZE 10
-
-// SNTP client configurations
-#define SNTP_SERVER_NAME "time1.google.com"
-#define SNTP_UPDATE_EVENT 1
-// Define how often the demo checks for SNTP updates
-#define PERIODIC_CHECK_INTERVAL (60 * NX_IP_PERIODIC_RATE)
+#include "mosquitto.cert.h"
 
 #define DEFAULT_TIMEOUT 10 * NX_IP_PERIODIC_RATE
-// Is equivalent to 70 years in sec calculated with www.epochconverter.com/date-difference
-#define EPOCH_TIME_DIFF 2208988800
 
-TX_THREAD AppMainThread;
-TX_THREAD AppSNTPThread;
-TX_THREAD AppMQTTThread;
+#define MQTT_CLIENT_ID          "MQTT_Client_ID"
+#define MQTT_CLIENT_STACK_SIZE  1024 * 3
+#define MQTT_THREAD_PRIORTY     2
+#define MQTT_BROKER_SERVER_PORT NXD_MQTT_TLS_PORT
+#define MQTT_KEEP_ALIVE_TIMER   60
+#define MQTT_CLEAN_SESSION      NX_TRUE
+#define QOS0                    0
+#define QOS1                    1
+#define DEMO_ALL_EVENTS         3
+#define DEMO_MESSAGE_EVENT      1
 
-TX_QUEUE MsgQueueOne;
+TX_EVENT_FLAGS_GROUP mqtt_client_flags;
 
-TX_SEMAPHORE Semaphore;
+NXD_MQTT_CLIENT mqtt_client;
+ULONG mqtt_client_stack[MQTT_CLIENT_STACK_SIZE];
 
-NX_PACKET_POOL AppPool[2]; // 0=TX, 1=RX.
-NX_IP IpInstance;
-NX_DHCP DhcpClient;
-NX_SNTP_CLIENT SntpClient;
-// TODO: Why we put static for the DnsClient?
-NX_DNS DnsClient;
+// TLS buffers and certificate containers
+extern const NX_SECURE_TLS_CRYPTO nx_crypto_tls_ciphers;
 
-TX_EVENT_FLAGS_GROUP SntpFlags;
+// Calculated with nx_secure_tls_metadata_size_calculate
+static CHAR crypto_metadata_client[11600];
 
-ULONG IpAddress;
-ULONG NetMask;
+// Define the TLS packet reassembly buffer
+UCHAR tls_packet_buffer[4000];
 
-ULONG current_time;
+// Declare buffers to hold message and topic
+static char message[NXD_MQTT_MAX_MESSAGE_LENGTH] = "hello";
+static UCHAR message_buffer[NXD_MQTT_MAX_MESSAGE_LENGTH];
+static UCHAR topic_buffer[NXD_MQTT_MAX_TOPIC_NAME_LENGTH];
 
-static CHAR *wifi_ssid;
-static CHAR *wifi_password;
-static wiced_security_t wifi_mode;
-
-static UCHAR ip_stack[IP_STACK_MEMORY_SIZE];
-static UCHAR tx_pool_stack[NX_TX_PACKET_POOL_SIZE];
-static UCHAR rx_pool_stack[NX_RX_PACKET_POOL_SIZE];
-// static UCHAR arp_cache_stack[ARP_MEMORY_SIZE];
-
-static VOID app_main_thread_entry(ULONG thread_input);
-static VOID app_sntp_thread_entry(ULONG thread_input);
-static VOID app_mqtt_thread_entry(ULONG thread_input);
-
-static VOID ip_address_change_notify_callback(NX_IP *ip_instance, VOID *ptr);
-static VOID time_update_callback(NX_SNTP_TIME_MESSAGE *time_update_ptr, NX_SNTP_TIME *local_time);
-// static ULONG nx_secure_tls_session_time_function(void);
-// static UINT dns_create(NX_DNS *dns_ptr);
+// static ULONG nx_secure_tls_session_time_func(VOID)
+// {
+//     // TODO: get the time
+//     return (current_time);
+// }
 
 /**
- * @brief Join WiFi.
- * @retval int
- */
-static UINT wifi_init()
-{
-    wiced_mac_t mac;
-
-    printf("\r\nInitializing WiFi...\r\n");
-
-    if (wifi_ssid[0] == 0)
-    {
-        printf("ERROR: wifi_ssid is empty\r\n");
-        return NX_NOT_SUCCESSFUL;
-    }
-
-    // Set pools for wifi
-    if (wwd_buffer_init(AppPool) != WWD_SUCCESS)
-    {
-        printf("ERROR: wwd_buffer_init\r\n");
-        return NX_NOT_SUCCESSFUL;
-    }
-
-    // Set country
-    // TODO: this will cause error
-    if (wwd_management_wifi_on(WIFI_COUNTRY) != WWD_SUCCESS)
-    {
-        printf("ERROR: wwd_management_wifi_on\r\n");
-        return NX_NOT_SUCCESSFUL;
-    }
-
-    wwd_wifi_get_mac_address(&mac, WWD_STA_INTERFACE);
-    printf("\tMAC address: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-           mac.octet[0],
-           mac.octet[1],
-           mac.octet[2],
-           mac.octet[3],
-           mac.octet[4],
-           mac.octet[5]);
-
-    printf("SUCCESS: WiFi initialized\r\n");
-
-    return NX_SUCCESS;
-}
-
-/**
- * @brief Application NetXDuo Initialization.
+ * @brief Callback to setup TLS parameters for secure MQTT connection.
  * @param memory_ptr: memory pointer
  * @retval int
  */
-UINT nx_client_init(VOID *memory_ptr)
+static UINT tls_setup_callback(NXD_MQTT_CLIENT *mqtt_client_ptr, NX_SECURE_TLS_SESSION *tls_session_ptr,
+                               NX_SECURE_X509_CERT *certificate_ptr, NX_SECURE_X509_CERT *trusted_certificate_ptr)
 {
     UINT status = NX_SUCCESS;
-    TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL *)memory_ptr;
+    NX_PARAMETER_NOT_USED(mqtt_client_ptr);
 
-    printf("Nx_MQTT_Client application started...\r\n");
+    // Initialize TLS module
+    nx_secure_tls_initialize();
 
-    CHAR *pointer;
-
-    // Set WiFi crendentials from config file
-    wifi_ssid = WIFI_SSID;
-    wifi_password = WIFI_PASSWORD;
-    WiFi_Mode mode = WIFI_MODE;
-
-    switch (mode)
-    {
-    case None:
-        wifi_mode = WICED_SECURITY_OPEN;
-        break;
-    case WEP:
-        wifi_mode = WICED_SECURITY_WEP_SHARED;
-        break;
-    case WPA_PSK_TKIP:
-        wifi_mode = WICED_SECURITY_WPA_TKIP_PSK;
-        break;
-    case WPA2_PSK_AES:
-        wifi_mode = WICED_SECURITY_WPA2_AES_PSK;
-        break;
-    }
-
-    // Allocate the memory for packet_pool
-    // if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, NX_PACKET_POOL_SIZE, TX_NO_WAIT)))
-    // {
-    //     printf("ERROR: tx_byte_allocate for packet pool (0x%08x)\r\n", status);
-    //     return TX_POOL_ERROR;
-    // }
-
-    // Initialize the NetX system
-    nx_system_initialize();
-
-    // Create the Main TX Packet pool to be used for packet allocation
-    status = nx_packet_pool_create(&AppPool[0], "TX Packet Pool", NX_PACKET_SIZE, tx_pool_stack, NX_TX_PACKET_POOL_SIZE);
+    // Create a TLS session
+    status = nx_secure_tls_session_create(tls_session_ptr, &nx_crypto_tls_ciphers, crypto_metadata_client,
+                                          sizeof(crypto_metadata_client));
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: nx_packet_pool_create for Main TX (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Create the Main RX Packet pool to be used for packet allocation
-    status = nx_packet_pool_create(&AppPool[1], "RX Packet Pool", NX_PACKET_SIZE, rx_pool_stack, NX_RX_PACKET_POOL_SIZE);
-    if (status != NX_SUCCESS)
-    {
-        nx_packet_pool_delete(&AppPool[0]);
-        printf("ERROR: nx_packet_pool_create for Main RX (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Initialize WiFi
-    status = wifi_init();
-    if (status != NX_SUCCESS)
-    {
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: wifi_init (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Allocate the memory for NX_IP instance
-    // if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, NX_PACKET_POOL_SIZE, TX_NO_WAIT)))
-    // {
-    //     printf("ERROR: tx_byte_allocate for packet pool (0x%08x)\r\n", status);
-    //     return TX_POOL_ERROR;
-    // }
-
-    // Create the main NX_IP instance
-    status = nx_ip_create(
-        &IpInstance, "Main Ip Instance",
-        NULL_ADDRESS, NULL_MASK,
-        &AppPool[0],
-        wiced_sta_netx_duo_driver_entry,
-        (UCHAR *)ip_stack,
-        IP_STACK_MEMORY_SIZE,
-        TX_NO_WAIT);
-    if (status != NX_SUCCESS)
-    {
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_ip_create (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Create the DHCP client
-    status = nx_dhcp_create(&DhcpClient, &IpInstance, "DHCP Client");
-    if (status != NX_SUCCESS)
-    {
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_dhcp_create (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Allocate the memory for ARP
-    if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, ARP_MEMORY_SIZE, TX_NO_WAIT)))
-    {
-        printf("ERROR: tx_byte_allocate for main thread (0x%08x)\r\n", status);
-        return TX_POOL_ERROR;
-    }
-
-    // Enable the ARP protocol and provide the ARP cache size for the IP instance
-    status = nx_arp_enable(&IpInstance, (VOID *)pointer, ARP_MEMORY_SIZE);
-    if (status != NX_SUCCESS)
-    {
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_arp_enable (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Enable the ICMP
-    status = nx_icmp_enable(&IpInstance);
-    if (status != NX_SUCCESS)
-    {
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_icmp_enable (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Enable the UDP protocol required for DHCP communication
-    status = nx_udp_enable(&IpInstance);
-    if (status != NX_SUCCESS)
-    {
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_udp_enable (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
-    }
-
-    // Enable the TCP protocol required for DNS, MQTT..
-    status = nx_tcp_enable(&IpInstance);
-    if (status != NX_SUCCESS)
-    {
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_tcp_enable (0x%08x)\r\n", status);
+        printf("ERROR: nx_secure_tls_session_create (0x%08x)\r\n", status);
         return status;
     }
 
-    // Allocate the memory for Main thread
-    if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, DEFAULT_THREAD_MEMORY_SIZE, TX_NO_WAIT)))
-    {
-        printf("ERROR: tx_byte_allocate for main thread (0x%08x)\r\n", status);
-        return TX_POOL_ERROR;
-    }
+    // Allocate space for the certificate coming in from the broker
+    memset((certificate_ptr), 0, sizeof(NX_SECURE_X509_CERT));
 
-    // Create the main thread
-    status = tx_thread_create(
-        &AppMainThread, "App Main Thread", app_main_thread_entry,
-        0,
-        pointer,
-        DEFAULT_THREAD_MEMORY_SIZE,
-        DEFAULT_MAIN_PRIORITY, DEFAULT_MAIN_PRIORITY,
-        TX_NO_TIME_SLICE,
-        TX_AUTO_START);
-    if (status != TX_SUCCESS)
-    {
-        printf("ERROR: App Main Thread creation failed!\r\n");
-        return NX_NOT_ENABLED;
-    }
+    // Setup the callback function used by checking certificate valid date
+    // status = nx_secure_tls_session_time_function_set(tls_session_ptr, nx_secure_tls_session_time_func);
+    // if (status != NX_SUCCESS)
+    // {
+    //     printf("ERROR: nx_secure_tls_session_time_function_set (0x%08x)\r\n", status);
+    //     return status;
+    // }
 
-    // Allocate the memory for SNTP client thread
-    if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, SNTP_CLIENT_THREAD_MEMORY_SIZE, TX_NO_WAIT)))
-    {
-        printf("ERROR: tx_byte_allocate for SNTP client thread (0x%08x)\r\n", status);
-        return TX_POOL_ERROR;
-    }
-
-    // Create the SNTP client thread
-    status = tx_thread_create(
-        &AppSNTPThread, "App SNTP Thread", app_sntp_thread_entry,
-        0,
-        pointer,
-        SNTP_CLIENT_THREAD_MEMORY_SIZE,
-        SNTP_PRIORITY, SNTP_PRIORITY,
-        TX_NO_TIME_SLICE,
-        TX_DONT_START);
-    if (status != TX_SUCCESS)
-    {
-        printf("ERROR: App SNTP Thread creation failed!\r\n");
-        return NX_NOT_ENABLED;
-    }
-
-    // Create the SNTP event flags
-    status = tx_event_flags_create(&SntpFlags, "SNTP Event Flags");
+    // Allocate space for packet reassembly
+    status = nx_secure_tls_session_packet_buffer_set(tls_session_ptr, tls_packet_buffer, sizeof(tls_packet_buffer));
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: tx_event_flags_create for SNTP (0x%08x)\r\n", status);
-        return NX_NOT_ENABLED;
+        printf("ERROR: nx_secure_tls_session_packet_buffer_set (0x%08x)\r\n", status);
+        return status;
     }
 
-    // Allocate the memory for MQTT client thread
-    if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, DEFAULT_THREAD_MEMORY_SIZE, TX_NO_WAIT)))
+    // Allocate space for the certificate coming in from the remote host
+    status = nx_secure_tls_remote_certificate_allocate(tls_session_ptr, certificate_ptr, tls_packet_buffer,
+                                                       sizeof(tls_packet_buffer));
+    if (status != NX_SUCCESS)
     {
-        printf("ERROR: tx_byte_allocate for MQTT client thread (0x%08x)\r\n", status);
-        return TX_POOL_ERROR;
+        printf("ERROR: nx_secure_tls_remote_certificate_allocate (0x%08x)\r\n", status);
+        return status;
     }
 
-    // Create the MQTT client thread
-    status = tx_thread_create(
-        &AppMQTTThread, "App MQTT Thread", app_mqtt_thread_entry,
-        0,
-        pointer,
-        DEFAULT_THREAD_MEMORY_SIZE,
-        MQTT_PRIORITY, MQTT_PRIORITY,
-        TX_NO_TIME_SLICE,
-        TX_DONT_START);
-
-    if (status != TX_SUCCESS)
+    // Initialize Certificate to verify incoming server certificates
+    status =
+        nx_secure_x509_certificate_initialize(trusted_certificate_ptr, (UCHAR *)mosquitto_org_der,
+                                              mosquitto_org_der_len, NX_NULL, 0, NULL, 0, NX_SECURE_X509_KEY_TYPE_NONE);
+    if (status != NX_SUCCESS)
     {
-        printf("ERROR: App MQTT Thread creation failed!\r\n");
-        return NX_NOT_ENABLED;
+        printf("ERROR: nx_secure_x509_certificate_initialize (0x%08x)\r\n", status);
+        return status;
     }
 
-    // Allocate the memory for MsgQueueOne
-    if ((status = tx_byte_allocate(byte_pool, (VOID **)&pointer, APP_QUEUE_SIZE * sizeof(ULONG), TX_NO_WAIT)))
+    // Add a CA Certificate to our trusted store
+    status = nx_secure_tls_trusted_certificate_add(tls_session_ptr, trusted_certificate_ptr);
+    if (status != NX_SUCCESS)
     {
-        printf("ERROR: tx_byte_allocate for MsgQueueOne (0x%08x)\r\n", status);
-        return TX_POOL_ERROR;
+        printf("ERROR: nx_secure_tls_trusted_certificate_add (0x%08x)\r\n", status);
+        return status;
     }
-
-    // Create the MsgQueueOne shared by MsgSenderThreadOne and MsgReceiverThread
-    if ((status = tx_queue_create(&MsgQueueOne, "Message Queue One", TX_1_ULONG, pointer, APP_QUEUE_SIZE * sizeof(ULONG))))
-    {
-        printf("ERROR: tx_queue_create for MsgQueueOne (0x%08x)\r\n", status);
-        return TX_QUEUE_ERROR;
-    }
-
-    // Set DHCP notification callback
-    tx_semaphore_create(&Semaphore, "DHCP Semaphore", 0);
 
     return status;
 }
 
 /**
- * @brief  ip address change callback.
- * @param ip_instance: NX_IP instance
- * @param ptr: user data
+ * @brief Declare the disconnect notify function
+ * @param mqtt_client_ptr: MQTT client pointer
  * @retval none
  */
-static VOID ip_address_change_notify_callback(NX_IP *ip_instance, VOID *ptr)
+static VOID mqtt_disconnect_func(NXD_MQTT_CLIENT *mqtt_client_ptr)
 {
-    /* release the semaphore as soon as an IP address is available */
-    tx_semaphore_put(&Semaphore);
+    NX_PARAMETER_NOT_USED(mqtt_client_ptr);
+
+    printf("INFO: MQTT client disconnected from broker '%s'\r\n", MQTT_BROKER_SERVER);
 }
 
 /**
- * @brief  Connect WiFi.
- * @param none
+ * @brief Declare the notify function
+ * @param mqtt_client_ptr: MQTT client pointer
+ * @param number_of_messages: Number of messages
  * @retval none
  */
-static VOID wifi_connect()
+static VOID mqtt_notify_func(NXD_MQTT_CLIENT *mqtt_client_ptr, UINT number_of_messages)
 {
-    int32_t wifiConnectCounter = 1;
-    wiced_ssid_t wiced_ssid = {0};
-    wwd_result_t join_result;
+    NX_PARAMETER_NOT_USED(mqtt_client_ptr);
+    NX_PARAMETER_NOT_USED(number_of_messages);
 
-    // Check if Wifi is already connected
-    if (wwd_wifi_is_ready_to_transceive(WWD_STA_INTERFACE) != WWD_SUCCESS)
-    {
-        printf("\r\nConnecting WiFi...\r\n");
-
-        // Halt any existing connection attempts
-        wwd_wifi_join_halt(WICED_TRUE);
-        wwd_wifi_leave(WWD_STA_INTERFACE);
-        wwd_wifi_join_halt(WICED_FALSE);
-
-        wiced_ssid.length = strlen(wifi_ssid);
-        memcpy(wiced_ssid.value, wifi_ssid, wiced_ssid.length);
-
-        // Connect to the specified SSID
-        printf("\tConnecting to SSID '%s'\r\n", wifi_ssid);
-        do
-        {
-            printf("\tAttempt %ld...\r\n", wifiConnectCounter++);
-
-            // Obtain the IP internal mutex before reconnecting WiFi
-            tx_mutex_get(&(IpInstance.nx_ip_protection), TX_WAIT_FOREVER);
-            join_result = wwd_wifi_join(
-                &wiced_ssid, wifi_mode, (uint8_t *)wifi_password, strlen(wifi_password), NULL, WWD_STA_INTERFACE);
-            tx_mutex_put(&(IpInstance.nx_ip_protection));
-
-            tx_thread_sleep(5 * TX_TIMER_TICKS_PER_SECOND);
-        } while (join_result != WWD_SUCCESS);
-
-        printf("SUCCESS: WiFi connected\r\n");
-    }
-}
-
-/**
- * @brief  Main thread entry.
- * @param thread_input: ULONG user argument used by the thread entry
- * @retval none
- */
-static VOID app_main_thread_entry(ULONG thread_input)
-{
-    UINT status = NX_SUCCESS;
-
-    // Connect WiFi
-    wifi_connect();
-
-    // Create a DNS client
-    status = nx_dns_create(&DnsClient, &IpInstance, (UCHAR *)"DNS Client");
-    if (status != NX_SUCCESS)
-    {
-        nx_dhcp_delete(&DhcpClient);
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_dns_create (0x%08x)\r\n", status);
-    }
-
-    // Initialize DNS instance with a dummy server
-    // TODO: use nx_dhcp_interface_user_option_retrieve to get the DNS server address
-    status = nx_dns_server_add(&DnsClient, USER_DNS_ADDRESS);
-    if (status != NX_SUCCESS)
-    {
-        printf("ERROR: nx_dns_server_add (0x%08x)\r\n", status);
-    }
-
-    status = nx_ip_address_change_notify(&IpInstance, ip_address_change_notify_callback, NULL);
-    if (status != NX_SUCCESS)
-    {
-        printf("ERROR: nx_ip_address_change_notify (0x%08x)\r\n", status);
-    }
-
-    // Start DHCP client
-    status = nx_dhcp_start(&DhcpClient);
-    if (status != NX_SUCCESS)
-    {
-        nx_dhcp_delete(&DhcpClient);
-        nx_ip_delete(&IpInstance);
-        nx_packet_pool_delete(&AppPool[0]);
-        nx_packet_pool_delete(&AppPool[1]);
-        printf("ERROR: nx_dhcp_start (0x%08x)\r\n", status);
-    }
-
-    // Wait until an IP address is ready
-    status = tx_semaphore_get(&Semaphore, TX_WAIT_FOREVER);
-    if (status != TX_SUCCESS)
-    {
-        printf("ERROR: tx_semaphore_get (0x%08x)\r\n", status);
-    }
-
-    // Get IP address
-    status = nx_ip_address_get(&IpInstance, &IpAddress, &NetMask);
-    if (status != NX_SUCCESS)
-    {
-        nx_ip_delete(&IpInstance);
-        printf("ERROR: nx_ip_address_get (0x%08x)\r\n", status);
-    }
-
-    PRINT_IP_ADDRESS(IpAddress);
-
-    // Start the SNTP client thread
-    tx_thread_resume(&AppSNTPThread);
-
-    // This thread is not needed any more, we relinquish it
-    tx_thread_relinquish();
-
+    tx_event_flags_set(&mqtt_client_flags, DEMO_MESSAGE_EVENT, TX_OR);
     return;
 }
 
-/** @brief  Handler for notifying SNTP time update event
- * @param thread_input: ULONG user argument used by the thread entry
- * @retval none
- */
-static VOID time_update_callback(NX_SNTP_TIME_MESSAGE *time_update_ptr, NX_SNTP_TIME *local_time)
-{
-    NX_PARAMETER_NOT_USED(time_update_ptr);
-    NX_PARAMETER_NOT_USED(local_time);
-
-    tx_event_flags_set(&SntpFlags, SNTP_UPDATE_EVENT, TX_OR);
-}
-
-/** @brief  SNTP Client thread entry.
- * @param thread_input: ULONG user argument used by the thread entry
- * @retval none
- */
-static VOID app_sntp_thread_entry(ULONG thread_input)
+UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
 {
     UINT status;
-    ULONG fraction;
-    ULONG events = 0;
-    UINT server_status;
-    NXD_ADDRESS sntp_server_ip;
+    NXD_ADDRESS mqtt_server_ip;
+    ULONG events;
+    UINT topic_length, message_length;
+    UINT remaining_messages = MQTT_NB_MESSAGE;
+    UINT message_count      = 0;
+    UINT unlimited_publish  = NX_FALSE;
 
-    sntp_server_ip.nxd_ip_version = 4;
+    mqtt_server_ip.nxd_ip_version = 4;
 
-    // Look up SNTP Server address
-    status = nx_dns_host_by_name_get(&DnsClient, (UCHAR *)SNTP_SERVER_NAME, &sntp_server_ip.nxd_ip_address.v4, DEFAULT_TIMEOUT);
+    // Connect WiFi
+    status = wwd_network_connect();
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: nx_dns_host_by_name_get (0x%08x)\r\n", status);
+        tx_thread_sleep(5 * TX_TIMER_TICKS_PER_SECOND);
     }
 
-    // Create the SNTP client
-    status = nx_sntp_client_create(&SntpClient, &IpInstance, 0, &AppPool[0], NULL, NULL, NULL);
+    // Get MQTT borker server IP
+    status = nx_dns_host_by_name_get(dns_ptr, (UCHAR *)MQTT_BROKER_SERVER, &mqtt_server_ip.nxd_ip_address.v4,
+                                     DEFAULT_TIMEOUT);
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: nx_sntp_client_create (0x%08x)\r\n", status);
+        printf("ERROR: nxd_dns_host_by_name_get for MQTT broker server failed (0x%08x)\r\n", status);
+        return status;
     }
 
-    // Setup time update callback function
-    nx_sntp_client_set_time_update_notify(&SntpClient, time_update_callback);
-
-    // Use the IPv4 service to set up the Client and set the IPv4 SNTP server
-    status = nx_sntp_client_initialize_unicast(&SntpClient, sntp_server_ip.nxd_ip_address.v4);
+    // Create MQTT client instance
+    status =
+        nxd_mqtt_client_create(&mqtt_client, "MQTT Client", MQTT_CLIENT_ID, strlen(MQTT_CLIENT_ID), ip_ptr, pool_ptr,
+                               (VOID *)mqtt_client_stack, MQTT_CLIENT_STACK_SIZE, MQTT_THREAD_PRIORTY, NX_NULL, 0);
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: nx_sntp_client_initialize_unicast (0x%08x)\r\n", status);
+        printf("ERROR: nxd_mqtt_client_create failed (0x%08x)\r\n", status);
+        return status;
     }
 
-    // Run whichever service the client is configured for
-    status = nx_sntp_client_run_unicast(&SntpClient);
+    // Register the disconnect notification callback
+    nxd_mqtt_client_disconnect_notify_set(&mqtt_client, mqtt_disconnect_func);
+
+    // Set the receive notify callback
+    nxd_mqtt_client_receive_notify_set(&mqtt_client, mqtt_notify_func);
+
+    // Create a MQTT flag
+    status = tx_event_flags_create(&mqtt_client_flags, "MQTT Client Flags");
+    if (status != TX_SUCCESS)
+    {
+        printf("FAIL: Unable to create mqtt_client event flags (0x%02x)\r\n", status);
+        return status;
+    }
+
+    // Start a secure connection to the MQTT broker
+    status = nxd_mqtt_client_secure_connect(&mqtt_client, &mqtt_server_ip, MQTT_BROKER_SERVER_PORT, tls_setup_callback,
+                                            MQTT_KEEP_ALIVE_TIMER, MQTT_CLEAN_SESSION, NX_WAIT_FOREVER);
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: nx_sntp_client_run_unicast (0x%08x)\r\n", status);
-    }
-
-    // Wait for a server update event
-    tx_event_flags_get(&SntpFlags, SNTP_UPDATE_EVENT, TX_OR_CLEAR, &events, PERIODIC_CHECK_INTERVAL);
-
-    if (events == SNTP_UPDATE_EVENT)
-    {
-        // Check for valid SNTP server status
-        status = nx_sntp_client_receiving_updates(&SntpClient, &server_status);
-        if ((status != NX_SUCCESS) || (server_status == NX_FALSE))
-        {
-            // We do not have a valid update
-            printf("ERROR: nx_sntp_client_receiving_updates (0x%08x)\r\n", status);
-        }
-
-        // We have a valid update.  Get the SNTP client time
-        status = nx_sntp_client_get_local_time_extended(&SntpClient, &current_time, &fraction, NX_NULL, 0);
-        if ((status != NX_SUCCESS) || (server_status == NX_FALSE))
-        {
-            // We do not have a valid update
-            printf("ERROR: nx_sntp_client_receiving_updates (0x%08x)\r\n", status);
-        }
-
-        // TODO: Why?
-        // take off 70 years difference
-        current_time -= EPOCH_TIME_DIFF;
+        printf("ERROR: nxd_mqtt_client_secure_connect failed (0x%08x)\r\n", status);
+        return status;
     }
     else
     {
-        printf("ERROR: not SNTP_UPDATE_EVENT");
-        // TODO: Error handler
+        printf("SUCCESS: MQTT client connected to broker.\r\n");
+        printf("\tMQTT Broker server '%s':'%d'\r\n", MQTT_BROKER_SERVER, MQTT_BROKER_SERVER_PORT);
     }
 
-    // Start the MQTT client thread
-    tx_thread_resume(&AppMQTTThread);
-}
+    // Subscribe to the topic with QoS level 1
+    status = nxd_mqtt_client_subscribe(&mqtt_client, MQTT_TOPIC_NAME, strlen(MQTT_TOPIC_NAME), QOS1);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: nxd_mqtt_client_subscribe failed (0x%08x)\r\n", status);
+        return status;
+    }
 
-/**
- * @brief  MQTT Client thread entry.
- * @param thread_input: ULONG user argument used by the thread entry
- * @retval none
- */
-static VOID app_mqtt_thread_entry(ULONG thread_input)
-{
-    printf("Do fancy MQTT things here.\r\n");
+    // Publish messages
+    if (MQTT_NB_MESSAGE == 0) unlimited_publish = NX_TRUE;
 
-    return;
+    while (unlimited_publish || remaining_messages)
+    {
+        // Publish a message with QoS Level 1
+        status = nxd_mqtt_client_publish(&mqtt_client, MQTT_TOPIC_NAME, strlen(MQTT_TOPIC_NAME), (CHAR *)message,
+                                         strlen(message), NX_TRUE, QOS1, NX_WAIT_FOREVER);
+        if (status != NX_SUCCESS)
+        {
+            printf("ERROR: nxd_mqtt_client_publish failed (0x%08x)\r\n", status);
+            return status;
+        }
+
+        // Wait for the broker to publish the message
+        tx_event_flags_get(&mqtt_client_flags, DEMO_ALL_EVENTS, TX_OR_CLEAR, &events, TX_WAIT_FOREVER);
+
+        // Check if event received
+        if (events & DEMO_MESSAGE_EVENT)
+        {
+            // Get message from the broker
+            status = nxd_mqtt_client_message_get(&mqtt_client, topic_buffer, sizeof(topic_buffer), &topic_length,
+                                                 message_buffer, sizeof(message_buffer), &message_length);
+            if (status != NXD_MQTT_SUCCESS)
+            {
+                printf("ERROR: nxd_mqtt_client_message_get failed (0x%08x)\r\n", status);
+                return status;
+            }
+            else
+            {
+                printf("SUCCESS: Message '%d' received: TOPIC = '%s', MESSAGE = '%s'\r\n", message_count + 1,
+                       topic_buffer, message_buffer);
+            }
+        }
+
+        // Decrease message count
+        remaining_messages--;
+        message_count++;
+
+        // Delay 1s between each pub
+        tx_thread_sleep(100);
+    }
+
+    // Unsubscribe the topic
+    status = nxd_mqtt_client_unsubscribe(&mqtt_client, MQTT_TOPIC_NAME, strlen(MQTT_TOPIC_NAME));
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: nxd_mqtt_client_unsubscribe failed (0x%08x)\r\n", status);
+        return status;
+    }
+
+    // Disconnect from the broker
+    status = nxd_mqtt_client_disconnect(&mqtt_client);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: nxd_mqtt_client_disconnect failed (0x%08x)\r\n", status);
+        return status;
+    }
+
+    // Delete the client instance, release all the resources
+    status = nxd_mqtt_client_delete(&mqtt_client);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: nxd_mqtt_client_delete failed (0x%08x)\r\n", status);
+        return status;
+    }
+
+    return status;
 }

@@ -33,8 +33,8 @@ static UCHAR netx_tx_pool_stack[NETX_TX_POOL_SIZE];
 static UCHAR netx_rx_pool_stack[NETX_RX_POOL_SIZE];
 static UCHAR netx_arp_cache_area[NETX_ARP_CACHE_SIZE];
 
-static CHAR* netx_ssid;
-static CHAR* netx_password;
+static CHAR *netx_ssid;
+static CHAR *netx_password;
 static wiced_security_t netx_mode;
 
 static NX_DHCP nx_dhcp_client;
@@ -43,14 +43,10 @@ NX_IP nx_ip;
 NX_PACKET_POOL nx_pool[2]; // 0=TX, 1=RX.
 NX_DNS nx_dns_client;
 
-static void print_address(CHAR* preable, ULONG address)
+static void print_address(CHAR *preable, ULONG address)
 {
-    printf("\t%s: %d.%d.%d.%d\r\n",
-        preable,
-        (uint8_t)(address >> 24),
-        (uint8_t)(address >> 16 & 0xFF),
-        (uint8_t)(address >> 8 & 0xFF),
-        (uint8_t)(address & 0xFF));
+    printf("\t%s: %d.%d.%d.%d\r\n", preable, (uint8_t)(address >> 24), (uint8_t)(address >> 16 & 0xFF),
+           (uint8_t)(address >> 8 & 0xFF), (uint8_t)(address & 0xFF));
 }
 
 /* Join Network.  */
@@ -81,13 +77,8 @@ static UINT wifi_init()
     }
 
     wwd_wifi_get_mac_address(&mac, WWD_STA_INTERFACE);
-    printf("\tMAC address: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-        mac.octet[0],
-        mac.octet[1],
-        mac.octet[2],
-        mac.octet[3],
-        mac.octet[4],
-        mac.octet[5]);
+    printf("\tMAC address: %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac.octet[0], mac.octet[1], mac.octet[2], mac.octet[3],
+           mac.octet[4], mac.octet[5]);
 
     printf("SUCCESS: WiFi initialized\r\n");
 
@@ -135,8 +126,8 @@ static UINT dns_connect()
     printf("\r\nInitializing DNS client\r\n");
 
     // Retrieve DNS server address
-    if ((status = nx_dhcp_interface_user_option_retrieve(
-             &nx_dhcp_client, 0, NX_DHCP_OPTION_DNS_SVR, (UCHAR*)dns_server_address, &dns_server_address_size)))
+    if ((status = nx_dhcp_interface_user_option_retrieve(&nx_dhcp_client, 0, NX_DHCP_OPTION_DNS_SVR,
+                                                         (UCHAR *)dns_server_address, &dns_server_address_size)))
     {
         printf("ERROR: nx_dhcp_interface_user_option_retrieve (0x%08x)\r\n", status);
         return status;
@@ -165,7 +156,7 @@ static UINT dns_connect()
     return NX_SUCCESS;
 }
 
-UINT wwd_network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
+UINT wwd_network_init(CHAR *ssid, CHAR *password, WiFi_Mode mode)
 {
     UINT status;
 
@@ -175,33 +166,25 @@ UINT wwd_network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
 
     switch (mode)
     {
-        case None:
-            netx_mode = WICED_SECURITY_OPEN;
-            break;
-        case WEP:
-            netx_mode = WICED_SECURITY_WEP_SHARED;
-            break;
-        case WPA_PSK_TKIP:
-            netx_mode = WICED_SECURITY_WPA_TKIP_PSK;
-            break;
-        case WPA2_PSK_AES:
-            netx_mode = WICED_SECURITY_WPA2_AES_PSK;
-            break;
+        case None: netx_mode = WICED_SECURITY_OPEN; break;
+        case WEP: netx_mode = WICED_SECURITY_WEP_SHARED; break;
+        case WPA_PSK_TKIP: netx_mode = WICED_SECURITY_WPA_TKIP_PSK; break;
+        case WPA2_PSK_AES: netx_mode = WICED_SECURITY_WPA2_AES_PSK; break;
     }
 
     // Initialize the NetX system.
     nx_system_initialize();
 
     // Create a packet pool for TX.
-    if ((status = nx_packet_pool_create(
-             &nx_pool[0], "NetX TX Packet Pool", NETX_PACKET_SIZE, netx_tx_pool_stack, NETX_TX_POOL_SIZE)))
+    if ((status = nx_packet_pool_create(&nx_pool[0], "NetX TX Packet Pool", NETX_PACKET_SIZE, netx_tx_pool_stack,
+                                        NETX_TX_POOL_SIZE)))
     {
         printf("ERROR: nx_packet_pool_create TX (0x%08x)\r\n", status);
     }
 
     // Create a packet pool for RX.
-    else if ((status = nx_packet_pool_create(
-                  &nx_pool[1], "NetX RX Packet Pool", NETX_PACKET_SIZE, netx_rx_pool_stack, NETX_RX_POOL_SIZE)))
+    else if ((status = nx_packet_pool_create(&nx_pool[1], "NetX RX Packet Pool", NETX_PACKET_SIZE, netx_rx_pool_stack,
+                                             NETX_RX_POOL_SIZE)))
     {
         nx_packet_pool_delete(&nx_pool[0]);
         printf("ERROR: nx_packet_pool_create RX (0x%08x)\r\n", status);
@@ -216,15 +199,8 @@ UINT wwd_network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
     }
 
     // Create an IP instance
-    else if ((status = nx_ip_create(&nx_ip,
-                  "NetX IP Instance 0",
-                  NETX_IPV4_ADDRESS,
-                  NETX_IPV4_MASK,
-                  &nx_pool[0],
-                  wiced_sta_netx_duo_driver_entry,
-                  (UCHAR*)netx_ip_stack,
-                  NETX_IP_STACK_SIZE,
-                  1)))
+    else if ((status = nx_ip_create(&nx_ip, "NetX IP Instance 0", NETX_IPV4_ADDRESS, NETX_IPV4_MASK, &nx_pool[0],
+                                    wiced_sta_netx_duo_driver_entry, (UCHAR *)netx_ip_stack, NETX_IP_STACK_SIZE, 1)))
     {
         nx_packet_pool_delete(&nx_pool[0]);
         nx_packet_pool_delete(&nx_pool[1]);
@@ -232,7 +208,7 @@ UINT wwd_network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
     }
 
     // Enable ARP and supply ARP cache memory
-    else if ((status = nx_arp_enable(&nx_ip, (VOID*)netx_arp_cache_area, NETX_ARP_CACHE_SIZE)))
+    else if ((status = nx_arp_enable(&nx_ip, (VOID *)netx_arp_cache_area, NETX_ARP_CACHE_SIZE)))
     {
         nx_ip_delete(&nx_ip);
         nx_packet_pool_delete(&nx_pool[0]);
@@ -287,7 +263,7 @@ UINT wwd_network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
     }
 
     // Create DNS
-    else if ((status = nx_dns_create(&nx_dns_client, &nx_ip, (UCHAR*)"DNS Client")))
+    else if ((status = nx_dns_create(&nx_dns_client, &nx_ip, (UCHAR *)"DNS Client")))
     {
         nx_dhcp_delete(&nx_dhcp_client);
         nx_ip_delete(&nx_ip);
@@ -317,14 +293,14 @@ UINT wwd_network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
         nx_dhcp_delete(&nx_dhcp_client);
         nx_ip_delete(&nx_ip);
         nx_packet_pool_delete(&nx_pool[0]);
-        nx_packet_pool_delete(&nx_pool[1]);        
+        nx_packet_pool_delete(&nx_pool[1]);
     }
 
     // Initialize TLS
-    else
-    {
-        nx_secure_tls_initialize();
-    }
+    // else
+    // {
+    //     nx_secure_tls_initialize();
+    // }
 
     return status;
 }
@@ -357,8 +333,8 @@ UINT wwd_network_connect()
 
             // Obtain the IP internal mutex before reconnecting WiFi
             tx_mutex_get(&(nx_ip.nx_ip_protection), TX_WAIT_FOREVER);
-            join_result = wwd_wifi_join(
-                &wiced_ssid, netx_mode, (uint8_t*)netx_password, strlen(netx_password), NULL, WWD_STA_INTERFACE);
+            join_result = wwd_wifi_join(&wiced_ssid, netx_mode, (uint8_t *)netx_password, strlen(netx_password), NULL,
+                                        WWD_STA_INTERFACE);
             tx_mutex_put(&(nx_ip.nx_ip_protection));
 
             tx_thread_sleep(5 * TX_TIMER_TICKS_PER_SECOND);

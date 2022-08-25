@@ -47,6 +47,8 @@ set(SOURCES
     ${AZ3166_DIR}/startup/tx_initialize_low_level.S
     main.c
     nx_client.c
+    sntp_client.c
+    wwd_networking.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -63,8 +65,8 @@ target_link_libraries(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        .
-        config
+    .
+    config
 )
 
 target_link_directories(${PROJECT_NAME}

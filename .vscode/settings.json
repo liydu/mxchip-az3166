@@ -15,6 +15,7 @@
     "type_traits": "c",
     "screen.h": "c",
     "wwd_networking.h": "c",
-    "sntp_client.h": "c"
+    "sntp_client.h": "c",
+    "mqtt_config.h": "c"
   }
 }

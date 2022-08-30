@@ -20,7 +20,7 @@
 
 #define DEFAULT_TIMEOUT 10 * NX_IP_PERIODIC_RATE
 
-#define MQTT_CLIENT_ID          "MQTT_Client_ID"
+// #define MQTT_CLIENT_ID          "MQTT_Client_ID"
 #define MQTT_CLIENT_STACK_SIZE  1024 * 3
 #define MQTT_THREAD_PRIORTY     2
 #define MQTT_BROKER_SERVER_PORT NXD_MQTT_TLS_PORT
@@ -169,8 +169,6 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
 
     mqtt_server_ip.nxd_ip_version = 4;
 
-    printf("MAC Address string is %s", mac_address);
-
     // Connect WiFi
     status = wwd_network_connect();
     if (status != NX_SUCCESS)
@@ -188,9 +186,8 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
     }
 
     // Create MQTT client instance
-    status =
-        nxd_mqtt_client_create(&mqtt_client, "MQTT Client", MQTT_CLIENT_ID, strlen(MQTT_CLIENT_ID), ip_ptr, pool_ptr,
-                               (VOID *)mqtt_client_stack, MQTT_CLIENT_STACK_SIZE, MQTT_THREAD_PRIORTY, NX_NULL, 0);
+    status = nxd_mqtt_client_create(&mqtt_client, "MQTT Client", mac_address, strlen(mac_address), ip_ptr, pool_ptr,
+                                    (VOID *)mqtt_client_stack, MQTT_CLIENT_STACK_SIZE, MQTT_THREAD_PRIORTY, NX_NULL, 0);
     if (status != NX_SUCCESS)
     {
         printf("ERROR: nxd_mqtt_client_create failed (0x%08x)\r\n", status);
@@ -239,7 +236,11 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
     while (unlimited_publish || remaining_messages)
     {
         lps22hb_data = lps22hb_data_read();
-        snprintf(message, sizeof(message), "%f", (double)lps22hb_data.temperature_degC);
+
+        // Format the temperature data
+        int decvalue  = lps22hb_data.temperature_degC;
+        int fracvalue = abs(100 * (lps22hb_data.temperature_degC - (long)lps22hb_data.temperature_degC));
+        snprintf(message, sizeof(message), "{\"temperature\":%d.%02d}", decvalue, fracvalue);
 
         // Publish a message with QoS Level 1
         status = nxd_mqtt_client_publish(&mqtt_client, MQTT_TOPIC_NAME, strlen(MQTT_TOPIC_NAME), (CHAR *)message,
@@ -275,8 +276,8 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
         remaining_messages--;
         message_count++;
 
-        // Delay 1s between each pub
-        tx_thread_sleep(100);
+        // Delay 2s between each pub
+        tx_thread_sleep(200);
     }
 
     // Unsubscribe the topic

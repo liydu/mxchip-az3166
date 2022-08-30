@@ -14,6 +14,8 @@
 #include "mqtt_config.h"
 #include "wwd_networking.h"
 
+#include "sensor.h"
+
 #include "mosquitto.cert.h"
 
 #define DEFAULT_TIMEOUT 10 * NX_IP_PERIODIC_RATE
@@ -44,7 +46,7 @@ static CHAR crypto_metadata_client[11600];
 UCHAR tls_packet_buffer[4000];
 
 // Declare buffers to hold message and topic
-static char message[NXD_MQTT_MAX_MESSAGE_LENGTH] = "hello";
+static char message[NXD_MQTT_MAX_MESSAGE_LENGTH];
 static UCHAR message_buffer[NXD_MQTT_MAX_MESSAGE_LENGTH];
 static UCHAR topic_buffer[NXD_MQTT_MAX_TOPIC_NAME_LENGTH];
 
@@ -163,7 +165,11 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
     UINT message_count      = 0;
     UINT unlimited_publish  = NX_FALSE;
 
+    lps22hb_t lps22hb_data;
+
     mqtt_server_ip.nxd_ip_version = 4;
+
+    printf("MAC Address string is %s", mac_address);
 
     // Connect WiFi
     status = wwd_network_connect();
@@ -232,6 +238,9 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
 
     while (unlimited_publish || remaining_messages)
     {
+        lps22hb_data = lps22hb_data_read();
+        snprintf(message, sizeof(message), "%f", (double)lps22hb_data.temperature_degC);
+
         // Publish a message with QoS Level 1
         status = nxd_mqtt_client_publish(&mqtt_client, MQTT_TOPIC_NAME, strlen(MQTT_TOPIC_NAME), (CHAR *)message,
                                          strlen(message), NX_TRUE, QOS1, NX_WAIT_FOREVER);

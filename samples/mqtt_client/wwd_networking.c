@@ -43,6 +43,8 @@ NX_IP nx_ip;
 NX_PACKET_POOL nx_pool[2]; // 0=TX, 1=RX.
 NX_DNS nx_dns_client;
 
+CHAR *mac_address;
+
 static void print_address(CHAR *preable, ULONG address)
 {
     printf("\t%s: %d.%d.%d.%d\r\n", preable, (uint8_t)(address >> 24), (uint8_t)(address >> 16 & 0xFF),
@@ -77,6 +79,11 @@ static UINT wifi_init()
     }
 
     wwd_wifi_get_mac_address(&mac, WWD_STA_INTERFACE);
+
+    // Copy Mac Address array into string
+    strncpy(mac_address, (char *)mac.octet, 6);
+    mac_address[6] = '\0';
+
     printf("\tMAC address: %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac.octet[0], mac.octet[1], mac.octet[2], mac.octet[3],
            mac.octet[4], mac.octet[5]);
 

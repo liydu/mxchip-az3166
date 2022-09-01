@@ -22,7 +22,7 @@ sudo mv arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi /opt/
 
 ```bash
 # Add this path to the PATH environment variable
-export PATH="...:/opt/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi/bin:$PATH;
+export PATH="...:/opt/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi/bin:$PATH"
 ```
 
 1. Restart or use `source` to make your updated `.bashrc` or `.zshrc` reloaded.

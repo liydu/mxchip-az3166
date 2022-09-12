@@ -70,7 +70,7 @@ To make an encrypted connection with MQTT server, user should follow these steps
    Flow control = None
    ```
 
-1. Open hyperterminal to view serial output
+1. Open hyperterminal, press the **Reset** button on the board to view serial output:
 
    ![MQTT client output](../../docs/images/mqtt_client_output.png)
 

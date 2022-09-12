@@ -15,6 +15,7 @@
 #include "wwd_networking.h"
 
 #include "sensor.h"
+#include "screen.h"
 
 #include "mosquitto.cert.h"
 
@@ -220,6 +221,8 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
     {
         printf("SUCCESS: MQTT client connected to broker.\r\n");
         printf("\tMQTT Broker server '%s':'%d'\r\n", MQTT_BROKER_SERVER, MQTT_BROKER_SERVER_PORT);
+        screen_print("MQTT Broker server", L0);
+        screen_print(MQTT_BROKER_SERVER, L1);
     }
 
     // Subscribe to the topic with QoS level 1

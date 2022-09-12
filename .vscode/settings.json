@@ -16,6 +16,7 @@
     "screen.h": "c",
     "wwd_networking.h": "c",
     "sntp_client.h": "c",
-    "mqtt_config.h": "c"
+    "mqtt_config.h": "c",
+    "ssd1306.h": "c"
   }
 }

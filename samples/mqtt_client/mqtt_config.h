@@ -15,8 +15,8 @@ typedef enum
 // ----------------------------------------------------------------------------
 // WiFi connection config
 // ----------------------------------------------------------------------------
-#define WIFI_SSID     "S22Plus"
-#define WIFI_PASSWORD "yjy64161551"
+#define WIFI_SSID     ""
+#define WIFI_PASSWORD ""
 #define WIFI_MODE     WPA2_PSK_AES
 
 /* MQTT client configuration */

@@ -3,14 +3,19 @@
 
 #!/bin/bash
 
-openocd_param="-f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program build/mxchip_mqtt_client.elf verify\" -c \"reset halt\" -c \"shutdown\""
+# Use paths relative to this script's location
+SCRIPT=$(readlink -f "$0")
+SCRIPTDIR=$(dirname "$SCRIPT")
+BASEDIR=$(dirname "$SCRIPTDIR")
+
+# OPENOCD_PARAM="-f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program build/mxchip_mqtt_client.elf verify\" -c \"reset halt\" -c \"shutdown\""
 
 # Use Windows version of OpenOCD under WSL
 set -e
 if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null ; then
   echo "Windows Subsystem for Linux"
-  openocd.exe $openocd_param
+  openocd.exe -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/mxchip_mqtt_client.elf verify" -c "reset halt" -c "shutdown"
 else
-  echo "Anything else"
-  openocd $openocd_param
+  echo "Any Linux else"
+  openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/mxchip_mqtt_client.elf verify" -c "reset halt" -c "shutdown"
 fi

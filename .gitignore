@@ -29,6 +29,7 @@
 
 # Executables
 *.exe
+!cmake/*.exe
 *.out
 *.app
 *.i*86

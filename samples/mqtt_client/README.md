@@ -26,6 +26,10 @@ To make an encrypted connection with MQTT server, user should follow these steps
 
 ## Build the project
 
+### Windows
+
+1. Launch Powershell terminal.
+
 1. Compile using CMake.
 
    ```ps
@@ -36,6 +40,22 @@ To make an encrypted connection with MQTT server, user should follow these steps
 
    ```ps
    .\tools\flash.bat
+   ```
+
+### Linux or WSL2
+
+1. Launch Bash terminal.
+
+1. Compile using CMake.
+
+   ```ps
+   ./tools/rebuild.sh
+   ```
+
+1. Flash using OpenOCD
+
+   ```ps
+   ./tools/flash.sh
    ```
 
 ## Expected success behavior

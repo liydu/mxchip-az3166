@@ -10,17 +10,17 @@ All samples rely on Arm GCC toolchain, CMake and OpenOCD to compile and debug. F
 
 1. From File Explorer, navigate to the following path in the repo and run the setup script named `get-toolchain.bat`:
 
-```ps
-.\tools\get-toolchain.bat
-```
+  ```ps
+  .\tools\get-toolchain.bat
+  ```
 
 1. After the installation, open a new console window to recognize the configuration changes made by the setup script. Use this console to complete the remaining programming tasks in the quickstart. You can use Windows CMD, PowerShell, or Git Bash for Windows.
 
 1. Run the following code to confirm that CMake version 3.16 or later is installed.
 
-```ps
-cmake --version
-```
+  ```ps
+  cmake --version
+  ```
 
 ### Linux or WSL2
 
@@ -28,44 +28,44 @@ cmake --version
 
 1. Extract it to local folder and copy it to the path you want to put the toolchain. We will use `/opt` as an example.
 
-```bash
-tar xv ./arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi.tar.xz
+  ```bash
+  tar xv ./arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi.tar.xz
 
-sudo mv arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi /opt/
-```
+  sudo mv arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi /opt/
+  ```
 
 1. Add the Arm GCC binary path to your `PATH` environment variable by updating our `.bashrc` or `.zshrc`.
 
-```bash
-# Add this path to the PATH environment variable
-export PATH="...:/opt/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi/bin:$PATH"
-```
+  ```bash
+  # Add this path to the PATH environment variable
+  export PATH="...:/opt/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi/bin:$PATH"
+  ```
 
 1. Restart or use `source` to make your updated `.bashrc` or `.zshrc` reloaded.
 
-```bash
-source ~/.zshrc
-```
+  ```bash
+  source ~/.zshrc
+  ```
 
 1. You can verify it by view the version number of GCC.
 
-```bash
-arm-none-eabi-gcc --version
+  ```bash
+  arm-none-eabi-gcc --version
 
-arm-none-eabi-gcc (Arm GNU Toolchain 11.3.Rel1) 11.3.1 20220712
-```
+  arm-none-eabi-gcc (Arm GNU Toolchain 11.3.Rel1) 11.3.1 20220712
+  ```
 
 1. Install `CMake`, `Ninja` and `Git` if you have not.
 
-```bash
-sudo apt update && sudo apt install -y cmake ninja-build git
-```
+  ```bash
+  sudo apt update && sudo apt install -y cmake ninja-build git
+  ```
 
 1. Run the following code to confirm that CMake version 3.16 or later is installed.
 
-```bash
-cmake --version
-```
+  ```bash
+  cmake --version
+  ```
 
 Now you have your toolchain installed on your Linux.
 

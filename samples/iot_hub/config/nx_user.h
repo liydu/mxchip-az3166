@@ -89,6 +89,9 @@
    feature is disabled.  */
 #define NX_ENABLE_EXTENDED_NOTIFY_SUPPORT
 
+/* Azure Defender for IoT security module */
+#define NX_ENABLE_IP_PACKET_FILTER
+
 /* Defined, the TCP/IP offload feature is enabled.
    NX_ENABLE_INTERFACE_CAPABILITY must be defined to enable this feature.  */
 /*
@@ -100,7 +103,9 @@
 #define NX_SNTP_CLIENT_MIN_SERVER_STRATUM 5
 
 /* Define the process when assert fails. */
-#define NX_ASSERT_FAIL while (1) tx_thread_sleep(NX_WAIT_FOREVER);
+#define NX_ASSERT_FAIL                                                                                                 \
+    while (1)                                                                                                          \
+        tx_thread_sleep(NX_WAIT_FOREVER);
 // extern UINT nx_rand16( void );
 // #define NX_RAND                         nx_rand16
 
@@ -113,10 +118,8 @@
    enabled by default. */
 #define NX_SECURE_ENABLE
 
-/* Defined, application must use TLS to connect to MQTT broker. This feature
-   requires NX_SECURE_ENABLE defined. By default, this symbol is not
-   defined. */
-#define NXD_MQTT_REQUIRE_TLS
+/* Azure IoT Middleware for Azure RTOS */
+#define NXD_MQTT_CLOUD_ENABLE
 
 /*****************************************************************************/
 /********************* Configuration options for WICED ***********************/
@@ -129,9 +132,9 @@
 
 /* This define specifies the size of the physical packet trailer and is typically used to reserve storage
    for things like Ethernet CRCs, etc.  */
-#define NX_PHYSICAL_TRAILER         0
+#define NX_PHYSICAL_TRAILER 0
 
 /* Precision Time Protocol */
-#define NX_LINK_PTP_SEND                51
+#define NX_LINK_PTP_SEND 51
 
 #endif

@@ -11,11 +11,11 @@
 #include "nx_secure_tls_api.h"
 #include "nxd_mqtt_client.h"
 
-#include "mqtt_config.h"
+#include "azure_config.h"
 #include "wwd_networking.h"
 
-#include "sensor.h"
 #include "screen.h"
+#include "sensor.h"
 
 #include "mosquitto.cert.h"
 
@@ -308,4 +308,46 @@ UINT mqtt_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr)
     }
 
     return status;
+}
+
+UINT azure_iot_nx_client_entry(NX_IP *ip_ptr, NX_PACKET_POOL *pool_ptr, NX_DNS *dns_ptr,
+                               UINT (*unix_time_callback)(ULONG *unix_time))
+{
+    UINT status;
+
+    if ((status = azure_iot_nx_client_create(&azure_iot_nx_client, ip_ptr, pool_ptr, dns_ptr, unix_time_callback,
+                                             IOT_MODEL_ID, sizeof(IOT_MODEL_ID) - 1)))
+    {
+        printf("ERROR: azure_iot_nx_client_create failed (0x%08x)\r\n", status);
+        return status;
+    }
+
+    // Register the callbacks
+    azure_iot_nx_client_register_timer_callback(&azure_iot_nx_client, telemetry_cb, telemetry_interval);
+
+    // Setup authentication
+#ifdef ENABLE_X509
+    if ((status =
+             azure_iot_nx_client_cert_set(&azure_iot_nx_client, (UCHAR *)iot_x509_device_cert, iot_x509_device_cert_len,
+                                          (UCHAR *)iot_x509_private_key, iot_x509_private_key_len)))
+    {
+        printf("ERROR: azure_iot_nx_client_cert_set (0x%08x)\r\n", status);
+        return status;
+    }
+#else
+    if ((status = azure_iot_nx_client_sas_set(&azure_iot_nx_client, IOT_DEVICE_SAS_KEY)))
+    {
+        printf("ERROR: azure_iot_nx_client_sas_set (0x%08x)\r\n", status);
+        return status;
+    }
+#endif
+
+    // Enter the main loop
+#ifdef ENABLE_DPS
+    azure_iot_nx_client_dps_run(&azure_iot_nx_client, IOT_DPS_ID_SCOPE, IOT_DPS_REGISTRATION_ID, wwd_network_connect);
+#else
+    azure_iot_nx_client_hub_run(&azure_iot_nx_client, IOT_HUB_HOSTNAME, IOT_HUB_DEVICE_ID, wwd_network_connect);
+#endif
+
+    return NX_SUCCESS;
 }

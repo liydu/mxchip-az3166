@@ -1,12 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-set(TARGET common)
-
 set(SOURCES
     board_init.c
     console.c
     screen.c
+    sntp_client.c
+    wwd_networking.c
     stm32f4xx_hal_msp.c
 )
 
@@ -17,18 +17,4 @@ if(NOT DEFINED DISABLE_NEWLIB_STUB)
     )
 endif()
 
-add_library(${TARGET} OBJECT
-    ${SOURCES}
-)
-
-target_include_directories(${TARGET}
-    PUBLIC
-    .
-)
-
-target_link_libraries(${TARGET}
-    azrtos::threadx
-    azrtos::netxduo
-    stm32cubef4
-    mxchip_bsp
-)
+target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})

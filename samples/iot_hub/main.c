@@ -1,0 +1,64 @@
+/* Copyright (c) Microsoft Corporation.
+   Licensed under the MIT License. */
+
+#include <stdio.h>
+
+#include "tx_api.h"
+
+#include "board_init.h"
+#include "cmsis_utils.h"
+#include "wwd_networking.h"
+
+#include "nx_client.h"
+
+#include "mqtt_config.h"
+
+#define AZURE_THREAD_STACK_SIZE 4096
+#define AZURE_THREAD_PRIORITY   4
+
+TX_THREAD azure_thread;
+ULONG azure_thread_stack[AZURE_THREAD_STACK_SIZE / sizeof(ULONG)];
+
+static void azure_thread_entry(ULONG parameter)
+{
+    UINT status;
+
+    printf("Starting Azure thread\r\n\r\n");
+
+    // Initialize the network
+    if ((status = wwd_network_init(WIFI_SSID, WIFI_PASSWORD, WIFI_MODE)))
+    {
+        printf("ERROR: Failed to initialize the network (0x%08x)\r\n", status);
+    }
+    // MQTT client
+    else if ((status = mqtt_client_entry(&nx_ip, &nx_pool[0], &nx_dns_client)))
+    {
+        printf("ERROR: Failed to run MQTT client (0x%08x)\r\n", status);
+    }
+}
+
+void tx_application_define(void *first_unused_memory)
+{
+    systick_interval_set(TX_TIMER_TICKS_PER_SECOND);
+
+    // Create Azure thread
+    UINT status = tx_thread_create(&azure_thread, "Azure Thread", azure_thread_entry, 0, azure_thread_stack,
+                                   AZURE_THREAD_STACK_SIZE, AZURE_THREAD_PRIORITY, AZURE_THREAD_PRIORITY,
+                                   TX_NO_TIME_SLICE, TX_AUTO_START);
+
+    if (status != TX_SUCCESS)
+    {
+        printf("ERROR: Azure IoT thread creation failed\r\n");
+    }
+}
+
+int main(void)
+{
+    // Initialize the board
+    board_init();
+
+    // Enter the ThreadX kernel
+    tx_kernel_enter();
+
+    return 0;
+}

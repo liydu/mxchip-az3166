@@ -38,18 +38,20 @@ set(DISABLE_COMMON_NETWORK true)
 
 set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/mqtt_client/config)
 
+add_subdirectory(${LIB_DIR} lib)
+add_subdirectory(${AZ3166_DIR}/common common)
+
 set(SOURCES
     ${AZ3166_DIR}/startup/system_stm32f4xx.c
     ${AZ3166_DIR}/startup/startup_stm32f412rx.s
     ${AZ3166_DIR}/startup/tx_initialize_low_level.S
     main.c
     nx_client.c
+    sntp_client.c
+    wwd_networking.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-
-add_subdirectory(${LIB_DIR} lib)
-add_subdirectory(${AZ3166_DIR}/common common)
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx
@@ -58,18 +60,18 @@ target_link_libraries(${PROJECT_NAME}
     stm32cubef4
     mxchip_bsp
     wiced_sdk
+    common
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        .
-        config
-        ${AZ3166_DIR}/common
+    .
+    config
 )
 
 target_link_directories(${PROJECT_NAME}
     PUBLIC
-        ${AZ3166_DIR}/startup
+    ${AZ3166_DIR}/startup
 )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "IAR")

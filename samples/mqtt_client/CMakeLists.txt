@@ -49,7 +49,6 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 add_subdirectory(${LIB_DIR} lib)
-add_subdirectory(${AZ3166_DIR}/common common)
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx

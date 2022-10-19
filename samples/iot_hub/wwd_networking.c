@@ -303,10 +303,10 @@ UINT wwd_network_init(CHAR *ssid, CHAR *password, WiFi_Mode mode)
     }
 
     // Initialize TLS
-    // else
-    // {
-    //     nx_secure_tls_initialize();
-    // }
+    else
+    {
+        nx_secure_tls_initialize();
+    }
 
     return status;
 }

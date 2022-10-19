@@ -7,11 +7,12 @@
 
 #include "board_init.h"
 #include "cmsis_utils.h"
+#include "sntp_client.h"
 #include "wwd_networking.h"
 
 #include "nx_client.h"
 
-#include "mqtt_config.h"
+#include "azure_config.h"
 
 #define AZURE_THREAD_STACK_SIZE 4096
 #define AZURE_THREAD_PRIORITY   4
@@ -30,10 +31,10 @@ static void azure_thread_entry(ULONG parameter)
     {
         printf("ERROR: Failed to initialize the network (0x%08x)\r\n", status);
     }
-    // MQTT client
-    else if ((status = mqtt_client_entry(&nx_ip, &nx_pool[0], &nx_dns_client)))
+    // IoT Hub client
+    else if ((status = azure_iot_nx_client_entry(&nx_ip, &nx_pool[0], &nx_dns_client, sntp_time)))
     {
-        printf("ERROR: Failed to run MQTT client (0x%08x)\r\n", status);
+        printf("ERROR: Failed to run Azure IoT (0x%08x)\r\n", status);
     }
 }
 

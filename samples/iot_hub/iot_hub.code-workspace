@@ -1,17 +1,26 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../../az3166"
-		},
-		{
-			"path": "../../cmake"
-		},
-		{
-			"path": "../../lib"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../../az3166"
+    },
+    {
+      "path": "../../cmake"
+    },
+    {
+      "path": "../../lib"
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "wwd_networking.h": "c"
+    },
+    "cSpell.ignoreWords": [
+      "ciphersuite",
+      "ciphersuites",
+      "iothub"
+    ]
+  }
 }

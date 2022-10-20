@@ -15,14 +15,10 @@
 #define NX_AZURE_IOT_THREAD_PRIORITY 4
 
 // Incoming events from the middleware
-#define HUB_ALL_EVENTS                        0xFF
-#define HUB_CONNECT_EVENT                     0x01
-#define HUB_DISCONNECT_EVENT                  0x02
-#define HUB_COMMAND_RECEIVE_EVENT             0x04
-#define HUB_PROPERTIES_RECEIVE_EVENT          0x08
-#define HUB_WRITABLE_PROPERTIES_RECEIVE_EVENT 0x10
-#define HUB_PROPERTIES_COMPLETE_EVENT         0x20
-#define HUB_PERIODIC_TIMER_EVENT              0x40
+#define HUB_ALL_EVENTS           0xFF
+#define HUB_CONNECT_EVENT        0x01
+#define HUB_DISCONNECT_EVENT     0x02
+#define HUB_PERIODIC_TIMER_EVENT 0x40
 
 #define AZURE_IOT_DPS_ENDPOINT "global.azure-devices-provisioning.net"
 
@@ -33,9 +29,8 @@
 #define HUB_CONNECT_TIMEOUT_TICKS  (10 * TX_TIMER_TICKS_PER_SECOND)
 #define DPS_REGISTER_TIMEOUT_TICKS (30 * TX_TIMER_TICKS_PER_SECOND)
 
-#define DPS_PAYLOAD_SIZE       (15 + 128)
-#define TELEMETRY_BUFFER_SIZE  256
-#define PROPERTIES_BUFFER_SIZE 128
+#define DPS_PAYLOAD_SIZE      (15 + 128)
+#define TELEMETRY_BUFFER_SIZE 256
 
 // define static strings for content type and -encoding on message property bag
 static const UCHAR content_type_property[]     = "$.ct";
@@ -44,20 +39,6 @@ static const UCHAR content_type_json[]         = "application%2Fjson";
 static const UCHAR content_encoding_utf8[]     = "utf-8";
 
 static UCHAR telemetry_buffer[TELEMETRY_BUFFER_SIZE];
-static UCHAR properties_buffer[PROPERTIES_BUFFER_SIZE];
-
-static VOID printf_packet(CHAR *prepend, NX_PACKET *packet_ptr)
-{
-    printf("%s", prepend);
-
-    while (packet_ptr != NX_NULL)
-    {
-        printf("%.*s", (INT)(packet_ptr->nx_packet_length), (CHAR *)packet_ptr->nx_packet_prepend_ptr);
-        packet_ptr = packet_ptr->nx_packet_next;
-    }
-
-    printf("\r\n");
-}
 
 static VOID connection_status_callback(NX_AZURE_IOT_HUB_CLIENT *hub_client_ptr, UINT status)
 {
@@ -75,24 +56,6 @@ static VOID connection_status_callback(NX_AZURE_IOT_HUB_CLIENT *hub_client_ptr, 
 
     // update the connection status in the connect workflow
     connection_status_set(nx_context, status);
-}
-
-static VOID message_receive_command(NX_AZURE_IOT_HUB_CLIENT *hub_client_ptr, VOID *context)
-{
-    AZURE_IOT_NX_CONTEXT *nx_context = (AZURE_IOT_NX_CONTEXT *)context;
-    tx_event_flags_set(&nx_context->events, HUB_COMMAND_RECEIVE_EVENT, TX_OR);
-}
-
-static VOID message_receive_callback_properties(NX_AZURE_IOT_HUB_CLIENT *hub_client_ptr, VOID *context)
-{
-    AZURE_IOT_NX_CONTEXT *nx_context = (AZURE_IOT_NX_CONTEXT *)context;
-    tx_event_flags_set(&nx_context->events, HUB_PROPERTIES_RECEIVE_EVENT, TX_OR);
-}
-
-static VOID message_receive_callback_writable_property(NX_AZURE_IOT_HUB_CLIENT *hub_client_ptr, VOID *context)
-{
-    AZURE_IOT_NX_CONTEXT *nx_context = (AZURE_IOT_NX_CONTEXT *)context;
-    tx_event_flags_set(&nx_context->events, HUB_WRITABLE_PROPERTIES_RECEIVE_EVENT, TX_OR);
 }
 
 static VOID periodic_timer_entry(ULONG context)
@@ -170,41 +133,6 @@ static UINT iot_hub_initialize(AZURE_IOT_NX_CONTEXT *nx_context)
                                                                               connection_status_callback)))
     {
         printf("Error: failed on connection_status_callback (0x%08x)\r\n", status);
-    }
-
-    // Enable commands
-    else if ((status = nx_azure_iot_hub_client_command_enable(&nx_context->iothub_client)))
-    {
-        printf("Error: command receive enable failed (0x%08x)\r\n", status);
-    }
-
-    // Enable properties
-    else if ((status = nx_azure_iot_hub_client_properties_enable(&nx_context->iothub_client)))
-    {
-        printf("Failed on nx_azure_iot_hub_client_properties_enable!: error code = 0x%08x\r\n", status);
-    }
-
-    // Set properties callback
-    else if ((status = nx_azure_iot_hub_client_receive_callback_set(
-                  &nx_context->iothub_client, NX_AZURE_IOT_HUB_PROPERTIES, message_receive_callback_properties,
-                  (VOID *)nx_context)))
-    {
-        printf("Error: device twin callback set (0x%08x)\r\n", status);
-    }
-
-    // Set command callback
-    else if ((status = nx_azure_iot_hub_client_receive_callback_set(
-                  &nx_context->iothub_client, NX_AZURE_IOT_HUB_COMMAND, message_receive_command, (VOID *)nx_context)))
-    {
-        printf("Error: device method callback set (0x%08x)\r\n", status);
-    }
-
-    // Set the writable property callback
-    else if ((status = nx_azure_iot_hub_client_receive_callback_set(
-                  &nx_context->iothub_client, NX_AZURE_IOT_HUB_WRITABLE_PROPERTIES,
-                  message_receive_callback_writable_property, (VOID *)nx_context)))
-    {
-        printf("Error: device twin desired property callback set (0x%08x)\r\n", status);
     }
 
     // Register the pnp components for receiving
@@ -381,129 +309,6 @@ static VOID process_disconnect(AZURE_IOT_NX_CONTEXT *nx_context)
     }
 }
 
-static UINT process_properties_shared(AZURE_IOT_NX_CONTEXT *nx_context, NX_PACKET *packet_ptr, UINT message_type,
-                                      UINT property_type, UCHAR *scratch_buffer, UINT scratch_buffer_len,
-                                      func_ptr_property_received property_received_cb)
-{
-    UINT status;
-    const UCHAR *component_name_ptr;
-    USHORT component_name_length = 0;
-    UINT property_name_length;
-    ULONG properties_version;
-    NX_AZURE_IOT_JSON_READER json_reader;
-
-    if ((status = nx_azure_iot_json_reader_init(&json_reader, packet_ptr)))
-    {
-        printf("Error: failed to initialize json reader (0x%08x)\r\n", status);
-        nx_packet_release(packet_ptr);
-        return status;
-    }
-
-    // Get the version
-    if ((status = nx_azure_iot_hub_client_properties_version_get(&nx_context->iothub_client, &json_reader, message_type,
-                                                                 &properties_version)))
-    {
-        printf("Error: Properties version get failed (0x%08x)\r\n", status);
-        nx_packet_release(packet_ptr);
-        return status;
-    }
-
-    // reinitialize the json reader after reading the version to reset
-    if ((status = nx_azure_iot_json_reader_init(&json_reader, packet_ptr)))
-    {
-        printf("Error: failed to initialize json reader (0x%08x)\r\n", status);
-        nx_packet_release(packet_ptr);
-        return status;
-    }
-
-    while ((status = nx_azure_iot_hub_client_properties_component_property_next_get(
-                &nx_context->iothub_client, &json_reader, message_type, property_type, &component_name_ptr,
-                &component_name_length)) == NX_AZURE_IOT_SUCCESS)
-    {
-        if (nx_azure_iot_json_reader_token_string_get(&json_reader, scratch_buffer, scratch_buffer_len,
-                                                      &property_name_length))
-        {
-            printf("Failed to get string property value\r\n");
-            return NX_NOT_SUCCESSFUL;
-        }
-
-        nx_azure_iot_json_reader_next_token(&json_reader);
-
-        property_received_cb(nx_context, component_name_ptr, component_name_length, scratch_buffer,
-                             property_name_length, &json_reader, properties_version);
-
-        // If we are still looking at the value, then skip over it (including if it has children)
-        if (nx_azure_iot_json_reader_token_type(&json_reader) == NX_AZURE_IOT_READER_TOKEN_BEGIN_OBJECT)
-        {
-            nx_azure_iot_json_reader_skip_children(&json_reader);
-        }
-
-        nx_azure_iot_json_reader_next_token(&json_reader);
-    }
-
-    return NX_AZURE_IOT_SUCCESS;
-}
-
-static VOID process_properties(AZURE_IOT_NX_CONTEXT *nx_context)
-{
-    UINT status;
-    NX_PACKET *packet_ptr;
-
-    if ((status = nx_azure_iot_hub_client_properties_receive(&nx_context->iothub_client, &packet_ptr, NX_WAIT_FOREVER)))
-    {
-        printf("ERROR: nx_azure_iot_hub_client_properties_receive failed (0x%08x)\r\n", status);
-        return;
-    }
-
-    printf_packet("Receive properties: ", packet_ptr);
-
-    if (nx_context->property_received_cb)
-    {
-        // Parse the writable properties from the device twin receive receive message
-        if ((status = process_properties_shared(nx_context, packet_ptr, NX_AZURE_IOT_HUB_PROPERTIES,
-                                                NX_AZURE_IOT_HUB_CLIENT_PROPERTY_WRITABLE, properties_buffer,
-                                                sizeof(properties_buffer), nx_context->property_received_cb)))
-        {
-            printf("Error: failed to parse properties (0x%08x)\r\n", status);
-        }
-    }
-
-    // Release the received packet, as ownership was passed to the application from the middleware
-    nx_packet_release(packet_ptr);
-
-    // Send event to notify device twin received
-    tx_event_flags_set(&nx_context->events, HUB_PROPERTIES_COMPLETE_EVENT, TX_OR);
-}
-
-static VOID process_writable_properties(AZURE_IOT_NX_CONTEXT *nx_context)
-{
-    UINT status;
-    NX_PACKET *packet_ptr;
-
-    if ((status = nx_azure_iot_hub_client_writable_properties_receive(&nx_context->iothub_client, &packet_ptr,
-                                                                      NX_WAIT_FOREVER)))
-    {
-        printf("ERROR: nx_azure_iot_hub_client_writable_properties_receive (0x%08x)\r\n", status);
-        return;
-    }
-
-    printf_packet("Receive properties: ", packet_ptr);
-
-    if (nx_context->writable_property_received_cb)
-    {
-        // Parse the writable properties from the writable receive message
-        if ((status = process_properties_shared(nx_context, packet_ptr, NX_AZURE_IOT_HUB_WRITABLE_PROPERTIES,
-                                                NX_AZURE_IOT_HUB_CLIENT_PROPERTY_WRITABLE, properties_buffer,
-                                                sizeof(properties_buffer), nx_context->writable_property_received_cb)))
-        {
-            printf("ERROR: failed to parse properties (0x%08x)\r\n", status);
-        }
-    }
-
-    // Release the received packet, as ownership was passed to the application from the middleware
-    nx_packet_release(packet_ptr);
-}
-
 static VOID process_timer_event(AZURE_IOT_NX_CONTEXT *nx_context)
 {
     if (nx_context->timer_cb)
@@ -616,195 +421,6 @@ UINT azure_iot_nx_client_publish_telemetry(AZURE_IOT_NX_CONTEXT *context_ptr, CH
     printf("Telemetry message sent: %.*s.\r\n", telemetry_length, telemetry_buffer);
 
     return status;
-}
-
-static UINT reported_properties_begin(AZURE_IOT_NX_CONTEXT *context_ptr, NX_AZURE_IOT_JSON_WRITER *json_writer,
-                                      NX_PACKET **packet_ptr, CHAR *component_name_ptr)
-{
-    UINT status;
-
-    if ((status = nx_azure_iot_hub_client_reported_properties_create(&context_ptr->iothub_client, packet_ptr,
-                                                                     NX_WAIT_FOREVER)))
-    {
-        printf("Error: Failed create reported properties (0x%08x)\r\n", status);
-    }
-
-    else if ((status = nx_azure_iot_json_writer_init(json_writer, *packet_ptr, NX_WAIT_FOREVER)))
-    {
-        printf("Error: Failed to initialize json writer (0x%08x)\r\n", status);
-    }
-
-    else if ((status = nx_azure_iot_json_writer_append_begin_object(json_writer)))
-    {
-        printf("Error: Failed to append object begin (0x%08x)\r\n", status);
-    }
-
-    else if (component_name_ptr != NX_NULL &&
-             (status = nx_azure_iot_hub_client_reported_properties_component_begin(
-                  &context_ptr->iothub_client, json_writer, (UCHAR *)component_name_ptr, strlen(component_name_ptr))))
-    {
-        printf("Error: Failed to append component begin (0x%08x)\r\n", status);
-    }
-
-    return status;
-}
-
-static UINT reported_properties_end(AZURE_IOT_NX_CONTEXT *nx_context, NX_AZURE_IOT_JSON_WRITER *json_writer,
-                                    NX_PACKET **packet_ptr, CHAR *component_name_ptr)
-{
-    UINT status;
-    UINT response_status = 0;
-
-    if ((component_name_ptr != NX_NULL &&
-         (status = nx_azure_iot_hub_client_reported_properties_component_end(&nx_context->iothub_client, json_writer))))
-    {
-        printf("Error: Failed to append component end (0x%08x)\r\n", status);
-        return status;
-    }
-
-    if ((status = nx_azure_iot_json_writer_append_end_object(json_writer)))
-    {
-        printf("Error: Failed to append object end (0x%08x)\r\n", status);
-        return status;
-    }
-
-    printf_packet("Sending property: ", *packet_ptr);
-
-    if ((status = nx_azure_iot_hub_client_reported_properties_send(&nx_context->iothub_client, *packet_ptr, NX_NULL,
-                                                                   &response_status, NX_NULL, 5 * NX_IP_PERIODIC_RATE)))
-    {
-        printf("Error: nx_azure_iot_hub_client_reported_properties_send failed (0x%08x)\r\n", status);
-        return status;
-    }
-
-    else if ((response_status < 200) || (response_status >= 300))
-    {
-        printf("Error: Property sent response status failed (%d)\r\n", response_status);
-        return NX_NOT_SUCCESSFUL;
-    }
-
-    return NX_SUCCESS;
-}
-
-UINT azure_iot_nx_client_publish_properties(AZURE_IOT_NX_CONTEXT *nx_context, CHAR *component_name_ptr,
-                                            UINT (*append_properties)(NX_AZURE_IOT_JSON_WRITER *json_writer_ptr))
-{
-    UINT status;
-    NX_PACKET *packet_ptr;
-    NX_AZURE_IOT_JSON_WRITER json_writer;
-
-    if ((status = reported_properties_begin(nx_context, &json_writer, &packet_ptr, component_name_ptr)) ||
-
-        (status = append_properties(&json_writer)) ||
-
-        (status = reported_properties_end(nx_context, &json_writer, &packet_ptr, component_name_ptr)))
-    {
-        printf("ERROR: azure_iot_nx_client_publish_properties (0x%08x)", status);
-        nx_packet_release(packet_ptr);
-    }
-
-    return status;
-}
-
-UINT azure_iot_nx_client_publish_bool_property(AZURE_IOT_NX_CONTEXT *nx_context, CHAR *component_name_ptr,
-                                               CHAR *property_ptr, bool value)
-{
-    UINT status;
-    NX_AZURE_IOT_JSON_WRITER json_writer;
-    NX_PACKET *packet_ptr;
-
-    if ((status = reported_properties_begin(nx_context, &json_writer, &packet_ptr, component_name_ptr)) ||
-
-        (status = nx_azure_iot_json_writer_append_property_with_bool_value(&json_writer, (const UCHAR *)property_ptr,
-                                                                           strlen(property_ptr), value)) ||
-
-        (status = reported_properties_end(nx_context, &json_writer, &packet_ptr, component_name_ptr)))
-    {
-        printf("ERROR: azure_iot_nx_client_publish_bool_property (0x%08x)", status);
-        nx_packet_release(packet_ptr);
-    }
-
-    return status;
-}
-
-UINT azure_nx_client_respond_int_writable_property(AZURE_IOT_NX_CONTEXT *nx_context, CHAR *component_name_ptr,
-                                                   CHAR *property_ptr, INT value, INT http_status, INT version)
-{
-    UINT status;
-    NX_AZURE_IOT_JSON_WRITER json_writer;
-    NX_PACKET *packet_ptr;
-
-    if ((status = reported_properties_begin(nx_context, &json_writer, &packet_ptr, component_name_ptr)) ||
-
-        (status = nx_azure_iot_hub_client_reported_properties_status_begin(
-             &nx_context->iothub_client, &json_writer, (const UCHAR *)property_ptr, strlen(property_ptr), http_status,
-             version, NULL, 0)) ||
-
-        (status = nx_azure_iot_json_writer_append_int32(&json_writer, value)) ||
-
-        (status = nx_azure_iot_hub_client_reported_properties_status_end(&nx_context->iothub_client, &json_writer)) ||
-
-        (status = reported_properties_end(nx_context, &json_writer, &packet_ptr, component_name_ptr)))
-    {
-        printf("ERROR: azure_nx_client_respond_int_writable_property (0x%08x)", status);
-        nx_packet_release(packet_ptr);
-    }
-
-    return status;
-}
-
-UINT azure_iot_nx_client_publish_int_writable_property(AZURE_IOT_NX_CONTEXT *nx_context, CHAR *component_ptr,
-                                                       CHAR *property_ptr, UINT value)
-{
-    // Pass in a version of 1, as we a reporting the writable property, not responding to a server request
-    return azure_nx_client_respond_int_writable_property(nx_context, component_ptr, property_ptr, value, 200, 1);
-}
-
-UINT azure_iot_nx_client_register_command_callback(AZURE_IOT_NX_CONTEXT *nx_context, func_ptr_command_received callback)
-{
-    if (nx_context == NULL || nx_context->command_received_cb != NULL)
-    {
-        return NX_PTR_ERROR;
-    }
-
-    nx_context->command_received_cb = callback;
-    return NX_SUCCESS;
-}
-
-UINT azure_iot_nx_client_register_writable_property_callback(AZURE_IOT_NX_CONTEXT *nx_context,
-                                                             func_ptr_writable_property_received callback)
-{
-    if (nx_context == NULL || nx_context->writable_property_received_cb != NULL)
-    {
-        return NX_PTR_ERROR;
-    }
-
-    nx_context->writable_property_received_cb = callback;
-    return NX_SUCCESS;
-}
-
-UINT azure_iot_nx_client_register_property_callback(AZURE_IOT_NX_CONTEXT *nx_context,
-                                                    func_ptr_property_received callback)
-{
-    if (nx_context == NULL || nx_context->property_received_cb != NULL)
-    {
-        return NX_PTR_ERROR;
-    }
-
-    nx_context->property_received_cb = callback;
-    return NX_SUCCESS;
-}
-
-UINT azure_iot_nx_client_register_properties_complete_callback(AZURE_IOT_NX_CONTEXT *nx_context,
-                                                               func_ptr_properties_complete callback)
-{
-    if (nx_context == NULL || nx_context->properties_complete_cb != NULL)
-    {
-        return NX_PTR_ERROR;
-    }
-
-    nx_context->properties_complete_cb = callback;
-    return NX_SUCCESS;
 }
 
 UINT azure_iot_nx_client_register_timer_callback(AZURE_IOT_NX_CONTEXT *nx_context, func_ptr_timer callback,
@@ -962,16 +578,6 @@ static UINT client_run(AZURE_IOT_NX_CONTEXT *nx_context, UINT (*iot_initialize)(
         if (app_events & HUB_PERIODIC_TIMER_EVENT)
         {
             process_timer_event(nx_context);
-        }
-
-        if (app_events & HUB_PROPERTIES_RECEIVE_EVENT)
-        {
-            process_properties(nx_context);
-        }
-
-        if (app_events & HUB_WRITABLE_PROPERTIES_RECEIVE_EVENT)
-        {
-            process_writable_properties(nx_context);
         }
 
         // Monitor and reconnect where possible

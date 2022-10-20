@@ -1,26 +1,58 @@
 {
   "folders": [
     {
-      "path": "."
+      "name": "iot_hub",
+      "path": ".",
     },
     {
-      "path": "../../az3166"
+      "name": "az3166",
+      "path": "../../az3166",
     },
     {
-      "path": "../../cmake"
+      "name": "cmake",
+      "path": "../../cmake",
     },
     {
-      "path": "../../lib"
+      "name": "lib",
+      "path": "../../lib",
     }
   ],
   "settings": {
     "files.associations": {
-      "wwd_networking.h": "c"
+      "wwd_networking.h": "c",
+      "board_init.h": "c",
+      "stm32f4xx_hal.h": "c",
+      "stdio.h": "c"
     },
     "cSpell.ignoreWords": [
       "ciphersuite",
       "ciphersuites",
       "iothub"
     ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "MXCHIP: Remote",
+        "type": "cortex-debug",
+        "executable": "${workspaceFolder:iot_hub}/build/${input:app.name}.elf",
+        "request": "launch",
+        "servertype": "external",
+        "gdbTarget": "172.30.80.1:3333",
+        "runToEntryPoint": "main",
+        "svdFile": "${workspaceFolder:az3166}/STM32F412.svd",
+        "cwd": "${workspaceRoot:iot_hub}",
+        "showDevDebugOutput": "both"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "app.name",
+        "type": "promptString",
+        "default": "azure_iot_hub",
+        "description": "The device application name for debugging"
+      }
+  ]
   }
 }

@@ -8,14 +8,14 @@ SCRIPT=$(readlink -f "$0")
 SCRIPTDIR=$(dirname "$SCRIPT")
 BASEDIR=$(dirname "$SCRIPTDIR")
 
-# OPENOCD_PARAM="-f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program build/mxchip_mqtt_client.elf verify\" -c \"reset halt\" -c \"shutdown\""
+# OPENOCD_PARAM="-f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program build/azure_iot_hub.elf verify\" -c \"reset halt\" -c \"shutdown\""
 
 # Use Windows version of OpenOCD under WSL
 set -e
 if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null ; then
   echo "Windows Subsystem for Linux"
-  openocd.exe -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/mxchip_mqtt_client.elf verify" -c "reset halt" -c "shutdown"
+  openocd.exe -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/azure_iot_hub.elf verify" -c "reset halt" -c "shutdown"
 else
   echo "Any Linux else"
-  openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/mxchip_mqtt_client.elf verify" -c "reset halt" -c "shutdown"
+  openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/azure_iot_hub.elf verify" -c "reset halt" -c "shutdown"
 fi

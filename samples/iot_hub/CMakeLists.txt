@@ -38,9 +38,6 @@ set(DISABLE_COMMON_NETWORK true)
 
 set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/iot_hub/config)
 
-add_subdirectory(${LIB_DIR} lib)
-# add_subdirectory(${AZ3166_DIR}/common common)
-
 set(SOURCES
     ${AZ3166_DIR}/startup/system_stm32f4xx.c
     ${AZ3166_DIR}/startup/startup_stm32f412rx.s
@@ -51,11 +48,12 @@ set(SOURCES
     azure_iot_nx_client.c
     main.c
     nx_client.c
-    sntp_client.c
-    wwd_networking.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+add_subdirectory(${LIB_DIR} lib)
+add_subdirectory(${AZ3166_DIR}/common common)
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx
@@ -66,16 +64,13 @@ target_link_libraries(${PROJECT_NAME}
     wiced_sdk
 )
 
-target_include_directories(${PROJECT_NAME}
-    PUBLIC
-        .
-        config
-        ${AZ3166_DIR}/common
+target_include_directories(${PROJECT_NAME} PUBLIC
+    .
+    config
 )
 
-target_link_directories(${PROJECT_NAME}
-    PUBLIC
-        ${AZ3166_DIR}/startup
+target_link_directories(${PROJECT_NAME} PUBLIC
+    ${AZ3166_DIR}/startup
 )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "IAR")

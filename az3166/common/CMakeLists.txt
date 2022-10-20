@@ -18,3 +18,5 @@ if(NOT DEFINED DISABLE_NEWLIB_STUB)
 endif()
 
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
+
+target_include_directories(${PROJECT_NAME} PUBLIC .)

@@ -39,9 +39,6 @@ set(DISABLE_COMMON_NETWORK true)
 set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/iot_hub/config)
 
 set(SOURCES
-    ${AZ3166_DIR}/startup/system_stm32f4xx.c
-    ${AZ3166_DIR}/startup/startup_stm32f412rx.s
-    ${AZ3166_DIR}/startup/tx_initialize_low_level.S
     azure_iot_cert.c
     azure_iot_ciphersuites.c
     azure_iot_connect.c
@@ -54,6 +51,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 add_subdirectory(${LIB_DIR} lib)
 add_subdirectory(${AZ3166_DIR}/common common)
+add_subdirectory(${AZ3166_DIR}/startup startup)
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx
@@ -67,10 +65,6 @@ target_link_libraries(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} PUBLIC
     .
     config
-)
-
-target_link_directories(${PROJECT_NAME} PUBLIC
-    ${AZ3166_DIR}/startup
 )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "IAR")

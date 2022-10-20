@@ -63,6 +63,7 @@ static void iothub_connect(AZURE_IOT_NX_CONTEXT *nx_context)
     printf("\r\nInitializing Azure IoT Hub client\r\n");
     printf("\tHub hostname: %.*s\r\n", nx_context->azure_iot_hub_hostname_len, nx_context->azure_iot_hub_hostname);
     printf("\tDevice id: %.*s\r\n", nx_context->azure_iot_hub_device_id_len, nx_context->azure_iot_hub_device_id);
+    printf("\tModel id: %.*s\r\n", nx_context->azure_iot_model_id_len, nx_context->azure_iot_model_id);
 
     if ((status = nx_azure_iot_hub_client_connect(&nx_context->iothub_client, NX_FALSE, NX_WAIT_FOREVER)))
     {

@@ -58,3 +58,4 @@ VisualGDB/
 settings/
 
 .DS_Store
+.cortex-debug.*

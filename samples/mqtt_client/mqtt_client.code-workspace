@@ -1,17 +1,68 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../../az3166"
-		},
-		{
-			"path": "../../cmake"
-		},
-		{
-			"path": "../../lib"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "name": "mqtt_client",
+      "path": ".",
+    },
+    {
+      "name": "az3166",
+      "path": "../../az3166",
+    },
+    {
+      "name": "cmake",
+      "path": "../../cmake",
+    },
+    {
+      "name": "lib",
+      "path": "../../lib",
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "wwd_networking.h": "c",
+      "board_init.h": "c",
+      "stm32f4xx_hal.h": "c",
+      "stdio.h": "c"
+    }
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+			{
+				"name": "MXCHIP: Local OpenOCD",
+				"type": "cortex-debug",
+				"request": "launch",
+				"servertype": "openocd",
+				"device": "STM32F412RG",
+				"runToEntryPoint": "main",
+				"executable": "${workspaceFolder:mqtt_client}/build/mxchip_mqtt_client.elf",
+				"svdFile": "${workspaceFolder:az3166}/STM32F412.svd",
+				"cwd": "${workspaceRoot:mqtt_client}",
+				"configFiles": [
+						"interface/stlink.cfg",
+						"target/stm32f4x.cfg"
+				]
+			},
+      {
+        "name": "MXCHIP: Remote",
+        "type": "cortex-debug",
+        "executable": "${workspaceFolder:mqtt_client}/build/${input:app.name}.elf",
+        "request": "launch",
+        "servertype": "external",
+        "gdbTarget": "172.30.80.1:3333",
+        "runToEntryPoint": "main",
+        "svdFile": "${workspaceFolder:az3166}/STM32F412.svd",
+        "cwd": "${workspaceRoot:mqtt_client}",
+        "showDevDebugOutput": "both"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "app.name",
+        "type": "promptString",
+        "default": "mqtt_client",
+        "description": "The device application name for debugging"
+      }
+  ]
+  }
 }

@@ -15,23 +15,23 @@ typedef enum
 // ----------------------------------------------------------------------------
 // WiFi connection config
 // ----------------------------------------------------------------------------
-#define WIFI_SSID     ""
-#define WIFI_PASSWORD ""
+#define WIFI_SSID     "BabyAvocado"
+#define WIFI_PASSWORD "yjy64161551"
 #define WIFI_MODE     WPA2_PSK_AES
 
 // ----------------------------------------------------------------------------
 // Azure IoT Dynamic Provisioning Service
 //    Define this to use the DPS service, otherwise direct IoT Hub
 // ----------------------------------------------------------------------------
-// #define ENABLE_DPS
+#define ENABLE_DPS
 
 // ----------------------------------------------------------------------------
 // Azure IoT DPS connection config
 //    IOT_DPS_ID_SCOPE:        The DPS ID Scope
 //    IOT_DPS_REGISTRATION_ID: The DPS device Registration Id
 // ----------------------------------------------------------------------------
-#define IOT_DPS_ID_SCOPE        ""
-#define IOT_DPS_REGISTRATION_ID ""
+#define IOT_DPS_ID_SCOPE        "0ne006EBA4D"
+#define IOT_DPS_REGISTRATION_ID "device-01"
 
 // ----------------------------------------------------------------------------
 // Azure IoT Hub connection config
@@ -45,7 +45,7 @@ typedef enum
 // Azure IoT DPS Self-Signed X509Certificate
 //    Define this to connect to DPS or Iot Hub using a X509 certificate
 // ----------------------------------------------------------------------------
-//#define ENABLE_X509
+#define ENABLE_X509
 
 // ----------------------------------------------------------------------------
 // Azure IoT device SAS key

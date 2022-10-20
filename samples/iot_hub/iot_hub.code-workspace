@@ -42,8 +42,7 @@
         "gdbTarget": "172.30.80.1:3333",
         "runToEntryPoint": "main",
         "svdFile": "${workspaceFolder:az3166}/STM32F412.svd",
-        "cwd": "${workspaceRoot:iot_hub}",
-        "showDevDebugOutput": "both"
+        "cwd": "${workspaceRoot:iot_hub}"
       }
     ],
     "inputs": [

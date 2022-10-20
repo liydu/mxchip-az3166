@@ -1,22 +1,26 @@
-# MQTT Client
+# Azure IoT Hub
 
 This sample shows how to exchange data between client and server using MQTT protocol in an encrypted mode supporting TLS v1.2.
 
 ## Configurations
 
-All MQTT broker and Wi-Fi configurations are in `mqtt_config.h`.
+All Azure IoT hub and Wi-Fi configurations are in `azure_config.h`.
 
 ### Use X.509 certificate
 
+Follow [Provision multiple X.509 devices](https://learn.microsoft.com/azure/iot-dps/tutorial-custom-hsm-enrollment-group-x509?tabs=linux) to prepare private keys and certfications used by DPS for [group enrollment](https://learn.microsoft.com/azure/iot-dps/concepts-service#enrollment-group).
+
 > This is an optional step if you do not need to use your own X.509. The sample project itself has a default X.509 certificate be placed in `mosquitto.cert.h`.
 
-To make an encrypted connection with MQTT server, user should follow these steps to add an x509 certificate to the _mqtt_client_ and use it to ensure server's authentication :
+To make an encrypted connection with MQT T server, user should follow these steps to add an x509 certificate to the _mqtt_client_ and use it to ensure server's authentication :
 
-1. Download certificate authority CA (in this application "mosquitto.org.der" downloaded from [test.mosquitto](https://test.mosquitto.org)
+1. Download certificate a uthority CA (in this application "mosquitto.org.der" downloaded from [test.mosquitto](https://test.mosquitto.org)
 
 1. Convert certificate downloaded by executing the following cmd from the file downloaded path :
 
    ```bash
+   openssl x509 / rsa -inform pem -in CERTIFICATE.pem -outform der -out CERTIFICATE.der
+
    xxd -i mosquitto.org.der > mosquitto.cert.h
    ```
 

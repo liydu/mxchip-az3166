@@ -7,7 +7,8 @@
 #include "nx_api.h"
 #include "nxd_dns.h"
 
-#include "mqtt_config.h"
+// FIXME: For MQTT it will load mqtt_config.h
+#include "azure_config.h"
 
 #define MAC_ADDRESS_SIZE 18
 

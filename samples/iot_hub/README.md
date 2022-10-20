@@ -85,7 +85,3 @@ To make an encrypted connection with MQTT server, user should follow these steps
 1. In VSCode, launch `MXChip: Remote` as debug target to attach the GDB with it.
 
 1. After successfully launched, the GDB will stop at the `main()` function.
-
-## Project Structure
-
-TODO: Add project structure explanations

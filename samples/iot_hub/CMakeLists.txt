@@ -31,17 +31,18 @@ include(utilities)
 
 # Define the Project
 # CXX enables IntelliSense only. Sources are still compiled as C.
-project(mxchip_mqtt_client C CXX ASM)
+project(azure_iot_hub C CXX ASM)
 
 # Disable common networking component, MXCHIP has it's own
 set(DISABLE_COMMON_NETWORK true)
 
-set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/mqtt_client/config)
+set(AZURE_RTOS_USER_FILES ${SAMPLES_DIR}/iot_hub/config)
 
 set(SOURCES
-    ${AZ3166_DIR}/startup/system_stm32f4xx.c
-    ${AZ3166_DIR}/startup/startup_stm32f412rx.s
-    ${AZ3166_DIR}/startup/tx_initialize_low_level.S
+    azure_iot_cert.c
+    azure_iot_ciphersuites.c
+    azure_iot_connect.c
+    azure_iot_nx_client.c
     main.c
     nx_client.c
 )
@@ -49,6 +50,8 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 add_subdirectory(${LIB_DIR} lib)
+add_subdirectory(${AZ3166_DIR}/common common)
+add_subdirectory(${AZ3166_DIR}/startup startup)
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx
@@ -59,16 +62,9 @@ target_link_libraries(${PROJECT_NAME}
     wiced_sdk
 )
 
-target_include_directories(${PROJECT_NAME}
-    PUBLIC
-        .
-        config
-        ${AZ3166_DIR}/common
-)
-
-target_link_directories(${PROJECT_NAME}
-    PUBLIC
-        ${AZ3166_DIR}/startup
+target_include_directories(${PROJECT_NAME} PUBLIC
+    .
+    config
 )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "IAR")

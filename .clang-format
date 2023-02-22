@@ -11,7 +11,7 @@ UseTab: Never
 AlignAfterOpenBracket: Align
 AllowAllParametersOfDeclarationOnNextLine: false
 BinPackParameters: true
-AlignConsecutiveMacros: Consecutive
+AlignConsecutiveMacros: AcrossEmptyLinesAndComments
 AllowAllArgumentsOnNextLine: false
 #
 # if and switch case
@@ -22,6 +22,6 @@ IndentCaseLabels: true
 #
 # Other
 SpaceInEmptyBlock: true
-AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveAssignments: true
 SpacesInContainerLiterals: true
 # AlignArrayOfStructures: Right
